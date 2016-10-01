@@ -1,175 +1,118 @@
-import com.orbischallenge.ctz.Constants;
+import com.orbischallenge.ctz.objects.enums.Direction;
+
 import com.orbischallenge.game.engine.*;
 import com.orbischallenge.ctz.objects.*;
-import com.orbischallenge.ctz.objects.enums.*;
+import com.sun.glass.ui.SystemClipboard;
 
 
 public class PlayerAI {
-    boolean statsSet;
-    int numberOfControlPoints;
-    int numberOfMainframes;
-    int worldHeight;
-    int worldWidth;
-    int maximumEffectiveRange;
-    // int averageEffectiveRange;
+
+	static final Direction[] directions = {Direction.EAST, Direction.NORTH,
+			Direction.NORTH_EAST, Direction.NORTH_WEST, Direction.SOUTH,
+			Direction.SOUTH_EAST, Direction.SOUTH_WEST, Direction.WEST};
 
     public PlayerAI() {
-        statsSet = false;
     }
 
-    private int enemyNumber(Team ours, Team other) {
-        if (other == Team.NONE) {
-            return 0;
-        }
-        if (ours == Team.BLUE && other == Team.BLUE) {
-            return 1;
-        }
-        if (ours == Team.AMBER && other == Team.AMBER) {
-            return 1;
-        }
-        return -1;
-    }
-
-    private ControlPoint findPriorityControlPoint(
-            World world,
-            Point p,
-            Team friendly,
-            double mainframeMultiplierCost,
-            double friendlyMultiplierCost,
-            double enemyMultiplierCost
-            ) {
-        /**
-         * Breaks if no control points on map.
-         */
+    private ControlPoint findNearestMainframe(World world, Point p) {
         ControlPoint[] allPoints = world.getControlPoints();
         ControlPoint closest = null;
-        double longest = Double.NaN;
-        if (mainframeMultiplierCost != mainframeMultiplierCost) {
-            mainframeMultiplierCost = 1.0;
-        }
-        if (friendlyMultiplierCost != friendlyMultiplierCost) {
-            friendlyMultiplierCost = 1.0;
-        }
-        if (enemyMultiplierCost != enemyMultiplierCost) {
-            enemyMultiplierCost = 1.0;
-        }
+        int longest = 1000;
         for (ControlPoint cp: allPoints) {
-            double len = world.getPathLength(p, cp.getPosition());
             if (cp.isMainframe()) {
-                len *= mainframeMultiplierCost;
+                int len = world.getPathLength(p, cp.getPosition());
+                if (len < longest) {
+                    longest = len;
+                    closest = cp;
+                }
             }
-            if (enemyNumber(friendly, cp.getControllingTeam()) == -1) {
-                len *= enemyMultiplierCost;
-            }
-            if (enemyNumber(friendly, cp.getControllingTeam()) == 1) {
-                len *= friendlyMultiplierCost;
-            }
-            if (longest != longest || len < longest) {
-                longest = len;
-                closest = cp;
-            }
+        }
+        if (closest == null) {
+            closest = world.getNearestControlPoint(p);
         }
         return closest;
     }
 
-    private void setStats(
-            World world,
-            EnemyUnit[] enemyUnits,
-            FriendlyUnit[] friendlyUnits) {
-        ControlPoint[] points = world.getControlPoints();
-        this.numberOfControlPoints = points.length;
-        this.numberOfMainframes = 0;
-        for (ControlPoint p: points) {
-            if (p.isMainframe()) {
-                this.numberOfMainframes++;
-            }
-        }
-
-        System.out.print("Mainframe amount: ");
-        System.out.println(this.numberOfMainframes);
-
-        Point p = Point.origin();
-        this.worldHeight = -1;
-        while (world.isWithinBounds(p)) {
-            p = p.add(new Point(0,1));
-            this.worldWidth++;
-        }
-        p = Point.origin();
-        this.worldHeight = -1;
-        while (world.isWithinBounds(p)) {
-            p = p.add(new Point(1,0));
-            this.worldHeight++;
-        }
-
-        System.out.print("Width:");
-        System.out.println(this.worldWidth);
-
-        System.out.print("Height: ");
-        System.out.println(this.worldHeight);
-
-        this.maximumEffectiveRange = 0;
-        for (int x = 0; x < this.worldWidth; x++) {
-            for (int y = 0; y < this.worldHeight; y++) {
-                Point start = new Point(x, y);
-                if (world.getTile(start) == TileType.WALL) {
-                    continue;
-                }
-                for (Direction d: Direction.values()) {
-                    if (d == Direction.NOWHERE) {
-                        continue;
-                    }
-                    int r = 0;
-                    Point target = d.movePoint(start);
-                    while (world.canShooterShootTarget(start, target, 10)) {
-                        target = d.movePoint(target);
-                        r++;
-                    }
-                    if (r > this.maximumEffectiveRange) {
-                        this.maximumEffectiveRange = r;
-                    }
-                    if (this.maximumEffectiveRange == 10) {
-                        break;
-                    }
-                }
-                if (this.maximumEffectiveRange == 10) {
-                    break;
-                }
-            }
-            if (this.maximumEffectiveRange == 10) {
-                break;
-            }
-        }
-        System.out.print("Maximum Effective Range: ");
-        System.out.println(this.maximumEffectiveRange);
-        this.statsSet = true;
+    private int supNorm(Point a, Point b) {
+	    if (a == null || b == null) {
+		    return 1000;
+	    }
+	    return Math.max(Math.abs(a.getX() - b.getX()),
+			    Math.abs(a.getY() - b.getY()));
     }
 
-    /**
-     * This method will get called every turn.
-     *
-     * @param world The latest state of the world.
-     * @param enemyUnits An array of all 4 units on the enemy team.
-     *  Their order won't change.
-     * @param friendlyUnits An array of all 4 units on your team.
-     *  Their order won't change.
-     */
-    public void doMove(
-            World world,
-            EnemyUnit[] enemyUnits,
-            FriendlyUnit[] friendlyUnits) {
-        if (!this.statsSet) {
-            this.setStats(world, enemyUnits, friendlyUnits);
-        }
-        for (FriendlyUnit f: friendlyUnits) {
-            f.move(world.getNextDirectionInPath(
-                f.getPosition(),
-                findPriorityControlPoint(
-                    world,
-                    f.getPosition(),
-                    f.getTeam(),
-                    0.3,
-                    5,
-                    0.5).getPosition()));
+    private EnemyUnit nearestShootableEnemy(World world,
+                                            FriendlyUnit friendlyUnit) {
+	    int minDistanceToShootableEnemy = 1000;
+	    EnemyUnit target = null;
+	    for (Direction direction : directions) {
+		    EnemyUnit enemyUnit =
+				    world.getClosestShootableEnemyInDirection(friendlyUnit,
+						    direction);
+		    if (enemyUnit != null) {
+			    int newDistance =
+					    supNorm(enemyUnit.getPosition(),
+							    friendlyUnit.getPosition());
+			    if (newDistance < minDistanceToShootableEnemy) {
+				    minDistanceToShootableEnemy = newDistance;
+				    target = enemyUnit;
+			    }
+		    }
+	    }
+	    return target;
+    }
+
+	/**
+	 * This method will get called every turn.
+	 *
+	 * @param world The latest state of the world.
+	 * @param enemyUnits An array of all 4 units on the enemy team.
+	 *                      Their order won't change.
+	 * @param friendlyUnits An array of all 4 units on your team.
+	 *                         Their order won't change.
+	 */
+    public void doMove(World world, EnemyUnit[] enemyUnits,
+                       FriendlyUnit[] friendlyUnits) {
+	    boolean[] moved = new boolean[friendlyUnits.length];
+	    for (int i = 0; i < friendlyUnits.length; i++) {
+		    FriendlyUnit friendlyUnit = friendlyUnits[i];
+		    EnemyUnit target = nearestShootableEnemy(world, friendlyUnit);
+		    if (target != null) {
+			    friendlyUnit.shootAt(target);
+			    moved[i] = true;
+		    }
+	    }
+	    for (int i = 0; i < friendlyUnits.length; i++) {
+		    if (!moved[i]) {
+			    for (Direction direction : directions) {
+				    for (EnemyUnit enemyUnit : enemyUnits) {
+				        if (world.canShooterShootTarget(
+				        		direction.movePoint(
+				        				friendlyUnits[i].getPosition()),
+							    enemyUnit.getPosition(),
+							    friendlyUnits[i].getCurrentWeapon()
+									    .getRange())) {
+					        friendlyUnits[i].move(direction);
+					        moved[i] = true;
+				        }
+				    }
+			    }
+		    }
+	    }
+        for (int i = 0; i < friendlyUnits.length; i++) {
+	        if (!moved[i]) {
+		        if (findNearestMainframe(world, friendlyUnits[i].getPosition())
+				        == null) {
+			        friendlyUnits[i].move(directions[(int) (Math.random() *
+					        directions.length)]);
+		        } else {
+			        friendlyUnits[i].move(world.getNextDirectionInPath(
+			        		friendlyUnits[i].getPosition(),
+					        findNearestMainframe(world,
+							        friendlyUnits[i].getPosition())
+							        .getPosition()));
+		        }
+	        }
         }
     }
 }
