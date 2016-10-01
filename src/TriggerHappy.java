@@ -2,16 +2,72 @@ import com.orbischallenge.ctz.objects.enums.Direction;
 
 import com.orbischallenge.game.engine.*;
 import com.orbischallenge.ctz.objects.*;
-import com.sun.glass.ui.SystemClipboard;
+
+import java.util.ArrayList;
 
 
-public class PlayerAI {
+public class TriggerHappy {
 
 	static final Direction[] directions = {Direction.EAST, Direction.NORTH,
 			Direction.NORTH_EAST, Direction.NORTH_WEST, Direction.SOUTH,
 			Direction.SOUTH_EAST, Direction.SOUTH_WEST, Direction.WEST};
 
-    public PlayerAI() {
+    public TriggerHappy() {
+    }
+
+    private ArrayList<Point> path(World world, EnemyUnit[] enemyUnits, Point start,
+                                  Point end) {
+	    double[][] distances = new double[worldWidth][worldHeight];
+	    boolean[][] visited = new boolean[worldWidth][worldHeight];
+	    ArrayList<Point>[][] paths =
+			    new ArrayList<Point>[worldWidth][worldHeight];
+	    for (int i = 0; i < distances.length; i++) {
+		    for (int j = 0; j < distances[i].length; j++) {
+			    paths[i][j] = new ArrayList<>();
+				distances[i][j] = i == start.getX() && j == start.getY() ? 0 :
+						Double.MAX_VALUE;
+			    if (i == start.getX() && j == start.getY()) {
+				    paths[i][j].add(start);
+			    }
+		    }
+	    }
+	    Point current = start;
+	    while (!visited[end.getX()][end.getY()]) {
+		    visited[current.getX()][current.getY()] = true;
+		    for (Direction direction : directions) {
+			    Point considered = direction.movePoint(current);
+			    if (!visited[considered.getX()][considered.getY()]) {
+				    double newDistance =
+						    distances[current.getX()][current.getY()] + 1;
+				    //node weight of considered goes instead of the 1 above
+				    if (distances[considered.getX()][considered.getY()] >
+						    newDistance) {
+					    distances[considered.getX()][considered.getY()] =
+							    newDistance;
+					    paths[considered.getX()][considered.getY()] =
+							    (ArrayList<Point>)
+									    paths[current.getX()][current.getY()]
+											    .clone();
+					    paths[considered.getX()][considered.getY()]
+							    .add(considered);
+				    }
+			    }
+		    }
+		    double minDistance = Double.MAX_VALUE;
+		    Point next = null;
+		    for (int i = 0; i < distances.length; i++) {
+			    for (int j = 0; j < distances[i].length; j++) {
+				    if (!visited[i][j]) {
+					    if (distances[i][j] < minDistance) {
+						    minDistance = distances[i][j];
+						    next = new Point(i, j);
+					    }
+				    }
+			    }
+		    }
+		    current = next;
+	    }
+		return paths[end.getX()][end.getY()];
     }
 
     private ControlPoint findNearestMainframe(World world, Point p) {
@@ -82,6 +138,40 @@ public class PlayerAI {
 			    moved[i] = true;
 		    }
 	    }
+	    int[][][][] score = new int[directions.length][directions.length]
+			    [directions.length][directions.length];
+	    for (int i1 = 0; i1 < directions.length; i1++) {
+		    for (int i2 = 0; i2 < directions.length; i2++) {
+			    for (int i3 = 0; i3 < directions.length; i3++) {
+				    for (int i4 = 0; i4 < directions.length; i4++) {
+					    score[i1][i2][i3][i4] = -1;
+				    }
+			    }
+		    }
+	    }
+	    for (int i1 = 0; i1 < directions.length; i1++) {
+		    if (world.canMoveFromPointInDirection(
+		    		friendlyUnits[1].getPosition(), directions[i1])) {
+			    for (int i2 = 0; i2 < directions.length; i2++) {
+				    if (world.canMoveFromPointInDirection(
+						    friendlyUnits[1].getPosition(), directions[i2])) {
+				        for (int i3 = 0; i3 < directions.length; i3++) {
+					        if (world.canMoveFromPointInDirection(
+							        friendlyUnits[1].getPosition(),
+							        directions[i3])) {
+					            for (int i4 = 0; i4 < directions.length; i4++) {
+						            for (int j = 0; j < enemyUnits.length;
+						                 j++) {
+
+						            }
+					            }
+					        }
+					    }
+				    }
+			    }
+		    }
+	    }
+	    /*
 	    for (int i = 0; i < friendlyUnits.length; i++) {
 		    if (!moved[i]) {
 			    for (Direction direction : directions) {
@@ -99,6 +189,7 @@ public class PlayerAI {
 			    }
 		    }
 	    }
+	    */
         for (int i = 0; i < friendlyUnits.length; i++) {
 	        if (!moved[i]) {
 		        if (findNearestMainframe(world, friendlyUnits[i].getPosition())
