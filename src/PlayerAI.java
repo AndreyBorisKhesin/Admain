@@ -30,6 +30,11 @@ public class PlayerAI {
         return -1;
     }
 
+    private int supNormFast(Point x, Point y) {
+        Point d = x.subtract(y);
+        return Math.max(d.signum().getX()*x.getX(),d.signum().getY()*y.getY());
+    }
+
     private ControlPoint findPriorityControlPoint(
             World world,
             Point p,
@@ -160,16 +165,65 @@ public class PlayerAI {
         if (!this.statsSet) {
             this.setStats(world, enemyUnits, friendlyUnits);
         }
-        for (FriendlyUnit f: friendlyUnits) {
-            f.move(world.getNextDirectionInPath(
-                f.getPosition(),
-                findPriorityControlPoint(
-                    world,
+        if (this.numberOfControlPoints == 0) {
+            for (FriendlyUnit f: friendlyUnits) {
+                if (world.getPickupAtPosition(f.getPosition()) != null) {
+                    f.pickupItemAtPosition();
+                    continue;
+                }
+                EnemyUnit myTarget = null;
+                int closest = 20;
+                for (Direction d: Direction.values()) {
+                    if (d == Direction.NOWHERE) {
+                        continue;
+                    }
+                    EnemyUnit e = world.getClosestShootableEnemyInDirection(f, d);
+                    if (e == null) {
+                        continue;
+                    }
+                    if (supNormFast(f.getPosition(), e.getPosition()) < closest) {
+                        myTarget = e;
+                        closest = supNormFast(f.getPosition(), e.getPosition());
+                    }
+                }
+                if (myTarget != null && closest <= f.getCurrentWeapon().getRange()) {
+                    f.shootAt(myTarget);
+                    continue;
+                }
+                Point target = null;
+                closest = 1000;
+                for (Pickup p: world.getPickups()) {
+                    int len = world.getPathLength(f.getPosition(), p.getPosition());
+                    if (len < closest) {
+                        closest = len;
+                        target = p.getPosition();
+                    }
+                }
+                for (EnemyUnit e: enemyUnits) {
+                    int len = world.getPathLength(f.getPosition(), e.getPosition());
+                    if (len < closest) {
+                        closest = len;
+                        target = e.getPosition();
+                    }
+                }
+                if (target != null) {
+                    f.move(world.getNextDirectionInPath(
+                        f.getPosition(),
+                        target));
+                }
+            }
+        } else {
+            for (FriendlyUnit f: friendlyUnits) {
+                f.move(world.getNextDirectionInPath(
                     f.getPosition(),
-                    f.getTeam(),
-                    0.3,
-                    5,
-                    0.5).getPosition()));
+                    findPriorityControlPoint(
+                        world,
+                        f.getPosition(),
+                        f.getTeam(),
+                        0.3,
+                        5,
+                        0.5).getPosition()));
+            }
         }
     }
 }
