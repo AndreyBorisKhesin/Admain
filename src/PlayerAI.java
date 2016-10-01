@@ -5,6 +5,10 @@ import com.orbischallenge.ctz.objects.enums.*;
 
 
 public class PlayerAI {
+    static final Direction[] directions = {Direction.EAST, Direction.NORTH,
+            Direction.NORTH_EAST, Direction.NORTH_WEST, Direction.SOUTH,
+            Direction.SOUTH_EAST, Direction.SOUTH_WEST, Direction.WEST};
+
     boolean statsSet;
     int numberOfControlPoints;
     int numberOfMainframes;
@@ -18,6 +22,16 @@ public class PlayerAI {
 
     public PlayerAI() {
         statsSet = false;
+    }
+
+    private int totalDistance (World world, Point... ps) {
+        int total = 0;
+        for (Point p1 : ps) {
+            for (Point p2 : ps) {
+                total += world.getPathLength(p1, p2);
+            }
+        }
+        return total/2;
     }
 
     private int enemyNumber(Team ours, Team other) {
@@ -216,6 +230,37 @@ public class PlayerAI {
         return -128;
     }
 
+    private int unityFactor(World world, FriendlyUnit[] friendlyUnits) {
+        FriendlyUnit[] livingFriends = new FriendlyUnit[4];
+        int i = 0;
+        for (FriendlyUnit f : friendlyUnits) {
+            if (f.getHealth() != 0) {
+                livingFriends[i] = f;
+                i++;
+            }
+        }
+        switch(i) {
+            case 0:
+            case 1: return 1;
+            case 2: return this.totalDistance(
+                        world,
+                        livingFriends[0].getPosition(),
+                        livingFriends[1].getPosition());
+            case 3: return this.totalDistance(
+                        world,
+                        livingFriends[0].getPosition(),
+                        livingFriends[1].getPosition(),
+                        livingFriends[2].getPosition());
+            case 4: return this.totalDistance(
+                        world,
+                        livingFriends[0].getPosition(),
+                        livingFriends[1].getPosition(),
+                        livingFriends[2].getPosition(),
+                        livingFriends[3].getPosition());
+            default: return -1;
+        }
+    }
+
     /**
      * This method will get called every turn.
      *
@@ -232,6 +277,7 @@ public class PlayerAI {
         if (!this.statsSet) {
             this.setStats(world, enemyUnits, friendlyUnits);
         }
+        System.out.println(this.unityFactor(world, friendlyUnits));
         if (this.numberOfControlPoints > -1) {
             for (FriendlyUnit f: friendlyUnits) {
                 Pickup pickupHere = world.getPickupAtPosition(f.getPosition());
@@ -292,7 +338,7 @@ public class PlayerAI {
                     if (e.getHealth() == 0) {
                         continue;
                     }
-                    double val = 
+                    double val =
                         this.fudgeFactor*this.pickupScore(this.gunToPick(f.getCurrentWeapon())) -
                         this.pickupScore(this.gunToPick(e.getCurrentWeapon()));
                     int len = world.getPathLength(f.getPosition(), e.getPosition());
@@ -304,7 +350,8 @@ public class PlayerAI {
                 }
                 if (target != null) {
                     if (f.getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
-                        f.move(Direction.WEST);
+                        f.move(directions[(int) (Math.random() *
+                            directions.length)]);
                         continue;
                     }
                     f.move(world.getNextDirectionInPath(
