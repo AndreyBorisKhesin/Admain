@@ -343,6 +343,7 @@ public class PlayerAI {
                         this.pickupScore(this.gunToPick(e.getCurrentWeapon()));
                     int len = world.getPathLength(f.getPosition(), e.getPosition());
                     val /= len;
+                    val *= 5;
                     if (val > max) {
                         max = val;
                         target = e.getPosition();
