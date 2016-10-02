@@ -282,6 +282,7 @@ public class PlayerAI {
         }
         for (FriendlyUnit f : friendlyUnits) {
             System.out.println(f.getLastMoveResult());
+            System.out.println(f.getLastShotResult());
         }
         boolean[] moved = new boolean[4];
         for (int i = 0; i < 4; i++) {
@@ -327,71 +328,84 @@ public class PlayerAI {
         double maximumScore = 0;
         for (int t0 = 0; t0 < 4; t0++) {
             if (enemyUnits[t0].getHealth() == 0
-		            || enemyUnits[t0].getShieldedTurnsRemaining() > 0) {
+                    || enemyUnits[t0].getShieldedTurnsRemaining() > 0) {
                 continue;
             }
             for (int t1 = 0; t1 < 4; t1++) {
                 if (enemyUnits[t1].getHealth() == 0
-		                || enemyUnits[t1].getShieldedTurnsRemaining() > 0) {
+                        || enemyUnits[t1].getShieldedTurnsRemaining() > 0) {
                     continue;
                 }
                 for (int t2 = 0; t2 < 4; t2++) {
                     if (enemyUnits[t2].getHealth() == 0
-		                    || enemyUnits[t2].getShieldedTurnsRemaining() > 0) {
+                            || enemyUnits[t2].getShieldedTurnsRemaining() > 0) {
                         continue;
                     }
                     for (int t3 = 0; t3 < 4; t3++) {
                         if (enemyUnits[t3].getHealth() == 0
-		                        || enemyUnits[t3].getShieldedTurnsRemaining()
-		                        > 0) {
+                                || enemyUnits[t3].getShieldedTurnsRemaining()
+                                > 0) {
                             continue;
                         }
                         int[] damages = new int[4];
-                        byte[] shooters = new byte[4];
+                        int[] shooters = new int[4];
+                        for (int i = 0; i < 4; i++) {
+                            damages[i] = 0;
+                            shooters[i] = 0;
+                        }
                         if (friendlyUnits[0].checkShotAgainstEnemy(
-                        		enemyUnits[t0]) == ShotResult.CAN_HIT_ENEMY
-		                        && friendlyUnits[0].getShieldedTurnsRemaining()
-		                        == 0) {
+                                enemyUnits[t0]) == ShotResult.CAN_HIT_ENEMY
+                                && friendlyUnits[0].getShieldedTurnsRemaining()
+                                == 0) {
                             damages[t0] += friendlyUnits[0].getCurrentWeapon()
-		                            .getDamage();
+                                    .getDamage();
                             shooters[t0]++;
                         }
                         if (friendlyUnits[1].checkShotAgainstEnemy(
-                        		enemyUnits[t1]) == ShotResult.CAN_HIT_ENEMY
-		                        && friendlyUnits[1].getShieldedTurnsRemaining()
-		                        == 0) {
+                                enemyUnits[t1]) == ShotResult.CAN_HIT_ENEMY
+                                && friendlyUnits[1].getShieldedTurnsRemaining()
+                                == 0) {
                             damages[t1] += friendlyUnits[1].getCurrentWeapon()
-		                            .getDamage();
+                                    .getDamage();
                             shooters[t1]++;
                         }
                         if (friendlyUnits[2].checkShotAgainstEnemy(
-                        		enemyUnits[t2]) == ShotResult.CAN_HIT_ENEMY
-		                        && friendlyUnits[2].getShieldedTurnsRemaining()
-		                        == 0) {
+                                enemyUnits[t2]) == ShotResult.CAN_HIT_ENEMY
+                                && friendlyUnits[2].getShieldedTurnsRemaining()
+                                == 0) {
                             damages[t2] += friendlyUnits[2].getCurrentWeapon()
-		                            .getDamage();
+                                    .getDamage();
                             shooters[t2]++;
                         }
                         if (friendlyUnits[3].checkShotAgainstEnemy(
-                        		enemyUnits[t3]) == ShotResult.CAN_HIT_ENEMY
-		                        && friendlyUnits[3].getShieldedTurnsRemaining()
-		                        == 0) {
+                                enemyUnits[t3]) == ShotResult.CAN_HIT_ENEMY
+                                && friendlyUnits[3].getShieldedTurnsRemaining()
+                                == 0) {
                             damages[t3] += friendlyUnits[3].getCurrentWeapon()
-		                            .getDamage();
+                                    .getDamage();
                             shooters[t3]++;
                         }
-                        double score = 1d * Math.min(damages[0] * shooters[0],
-		                        enemyUnits[0].getHealth())
-		                        / enemyUnits[0].getHealth()
-		                        + 1d * Math.min(damages[1] * shooters[1],
-		                        enemyUnits[1].getHealth())
-		                        / enemyUnits[1].getHealth()
-		                        + 1d * Math.min(damages[2] * shooters[2],
-		                        enemyUnits[2].getHealth())
-		                        / enemyUnits[2].getHealth()
-		                        + 1d * Math.min(damages[3] * shooters[3],
-		                        enemyUnits[3].getHealth())
-		                        / enemyUnits[3].getHealth();
+                        double score = 0.0;
+                        if (enemyUnits[0].getHealth() > 0) {
+                            score += (1d * Math.min(damages[0] * shooters[0],
+                                enemyUnits[0].getHealth()))
+                                / enemyUnits[0].getHealth();
+                        }
+                        if (enemyUnits[1].getHealth() > 0) {
+                        score += (1d * Math.min(damages[1] * shooters[1],
+                                enemyUnits[1].getHealth()))
+                                / enemyUnits[1].getHealth();
+                        }
+                        if (enemyUnits[2].getHealth() > 0) {
+                        score += (1d * Math.min(damages[2] * shooters[2],
+                                enemyUnits[2].getHealth()))
+                                / enemyUnits[2].getHealth();
+                        }
+                        if (enemyUnits[3].getHealth() > 0) {
+                        score += (1d * Math.min(damages[3] * shooters[3],
+                                enemyUnits[3].getHealth()))
+                                / enemyUnits[3].getHealth();
+                        }
                         if (score > maximumScore) {
                             targets[0] = enemyUnits[t0];
                             targets[1] = enemyUnits[t1];
@@ -600,7 +614,13 @@ public class PlayerAI {
         }
         int minDistance = Integer.MAX_VALUE;
         for (int i = 0; i < 4; i++) {
+            if (friendlyUnits[i].getHealth() == 0) {
+                continue;
+            }
             for (int j = 0; j < 4; j++) {
+                if (enemyUnits[j].getHealth() == 0) {
+                    continue;
+                }
                 minDistance = Math.min(minDistance, world.getPathLength(
                         friendlyUnits[i].getPosition(),
                         enemyUnits[j].getPosition()));
