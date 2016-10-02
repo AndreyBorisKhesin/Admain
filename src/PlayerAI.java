@@ -17,7 +17,7 @@ public class PlayerAI {
     int worldHeight;
     int worldWidth;
     int maximumEffectiveRange;
-	Direction[][][] possibleDirections;
+    Direction[][][] possibleDirections;
     // int averageEffectiveRange;
     //
 
@@ -55,22 +55,22 @@ public class PlayerAI {
                         world.isWithinBounds(considered) &&
                         world.getTile(considered) != TileType.WALL &&
                         !visited[considered.getX()][considered.getY()]) {
-	                double nodeWeight = 1;
-	                for (EnemyUnit enemyUnit : enemyUnits) {
-		                nodeWeight *= (2 * enemyUnit.getHealth()
-				                / friendlyUnit.getCurrentWeapon().getRange()
-				                / friendlyUnit.getCurrentWeapon().getDamage()
-				                - friendlyUnit.getHealth()
-				                / enemyUnit.getCurrentWeapon().getRange()
-				                / enemyUnit.getCurrentWeapon().getDamage())
-				                / (world.getPathLength(considered,
-				                enemyUnit.getPosition()) + 1)
-				                / (world.getPathLength(considered,
-				                enemyUnit.getPosition()) + 1);
-	                }
+                    double nodeWeight = 1;
+                    for (EnemyUnit enemyUnit : enemyUnits) {
+                        nodeWeight *= (2 * enemyUnit.getHealth()
+                                / friendlyUnit.getCurrentWeapon().getRange()
+                                / friendlyUnit.getCurrentWeapon().getDamage()
+                                - friendlyUnit.getHealth()
+                                / enemyUnit.getCurrentWeapon().getRange()
+                                / enemyUnit.getCurrentWeapon().getDamage())
+                                / (world.getPathLength(considered,
+                                enemyUnit.getPosition()) + 1)
+                                / (world.getPathLength(considered,
+                                enemyUnit.getPosition()) + 1);
+                    }
                     double newDistance =
                             distances[current.getX()][current.getY()] +
-		                            Math.max(1, nodeWeight + 1);
+                                    Math.max(1, nodeWeight + 1);
                     if (distances[considered.getX()][considered.getY()] >
                             newDistance) {
                         distances[considered.getX()][considered.getY()] =
@@ -253,35 +253,28 @@ public class PlayerAI {
     }
 
     private WeaponType pickToGun (Pickup p) {
-        if (p.getPickupType() == PickupType.WEAPON_LASER_RIFLE) {
-            return WeaponType.LASER_RIFLE;
+        PickupType pt = p.getPickupType();
+        switch(pt) {
+            case WEAPON_LASER_RIFLE: return WeaponType.LASER_RIFLE;
+            case WEAPON_MINI_BLASTER: return WeaponType.MINI_BLASTER;
+            case WEAPON_SCATTER_GUN: return WeaponType.SCATTER_GUN;
+            case WEAPON_RAIL_GUN: return WeaponType.RAIL_GUN;
+            default: return null;
         }
-        if (p.getPickupType() == PickupType.WEAPON_MINI_BLASTER) {
-            return WeaponType.MINI_BLASTER;
-        }
-        if (p.getPickupType() == PickupType.WEAPON_SCATTER_GUN) {
-            return WeaponType.SCATTER_GUN;
-        }
-        if (p.getPickupType() == PickupType.WEAPON_RAIL_GUN) {
-            return WeaponType.RAIL_GUN;
-        }
-        return null;
     }
 
     private PickupType gunToPick (WeaponType w) {
-        if (w == WeaponType.LASER_RIFLE) {
-            return PickupType.WEAPON_LASER_RIFLE;
+        switch(w) {
+            case LASER_RIFLE: return PickupType.WEAPON_LASER_RIFLE;
+            case MINI_BLASTER: return PickupType.WEAPON_MINI_BLASTER;
+            case SCATTER_GUN: return PickupType.WEAPON_SCATTER_GUN;
+            case RAIL_GUN: return PickupType.WEAPON_RAIL_GUN;
+            default: return null;
         }
-        if (w == WeaponType.MINI_BLASTER) {
-            return PickupType.WEAPON_MINI_BLASTER;
-        }
-        if (w == WeaponType.SCATTER_GUN) {
-            return PickupType.WEAPON_SCATTER_GUN;
-        }
-        if (w == WeaponType.RAIL_GUN) {
-            return PickupType.WEAPON_RAIL_GUN;
-        }
-        return null;
+    }
+
+    private int weaponCoefficient (WeaponType w) {
+        return Math.min(w.getRange(), this.maximumEffectiveRange) * w.getDamage();
     }
 
     private int pickupScore (PickupType p) {
@@ -369,13 +362,9 @@ public class PlayerAI {
                         enemyNum++;
                     }
                 }
-                if (friendlyUnits[i].getShieldedTurnsRemaining()>0){
-	            for (int k = 0; k < 100; k++) {
-		            System.out.println(friendlyUnits[i].getShieldedTurnsRemaining());
-	            }}
                 if (totalDamage * enemyNum >= friendlyUnits[i].getHealth()
-		                && friendlyUnits[i].getNumShields() > 0
-		                && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
+                        && friendlyUnits[i].getNumShields() > 0
+                        && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
                     friendlyUnits[i].activateShield();
                     moved[i] = true;
                 }
@@ -386,8 +375,11 @@ public class PlayerAI {
                 new double[friendlyUnits.length][Direction.values().length];
             for (int i = 0; i < friendlyUnits.length; i++) {
                 for (int j = 0; j < Direction.values().length; j++) {
-                    Point target = null;
                     goodness[i][j] = Double.MIN_VALUE;
+                    Point newStart = Direction.values()[j].movePoint(friendlyUnits[i].getPosition());
+                    if (world.getTile(newStart) == TileType.WALL) {
+                        continue;
+                    }
                     for (Pickup p: world.getPickups()) {
                         double val = 1.0;
                         switch(p.getPickupType()) {
@@ -403,7 +395,11 @@ public class PlayerAI {
                                     val /= playnum;
                                 }
                             case REPAIR_KIT:
-                                val *= 500.0 / friendlyUnits[i].getHealth();
+                                if (friendlyUnits[i].getHealth() == 0) {
+                                    val = Double.MIN_VALUE;
+                                } else {
+                                    val *= 500.0 / friendlyUnits[i].getHealth();
+                                }
                                 break;
                             case WEAPON_LASER_RIFLE:
                             case WEAPON_MINI_BLASTER:
@@ -411,26 +407,17 @@ public class PlayerAI {
                             case WEAPON_RAIL_GUN:
                                 WeaponType otherGun = this.pickToGun(p);
                                 WeaponType myGun = friendlyUnits[i].getCurrentWeapon();
-                                val *= (
-                                    Math.min(
-                                        otherGun.getRange(),
-                                        this.maximumEffectiveRange) *
-                                    otherGun.getDamage() -
-                                    Math.min(
-                                        myGun.getRange(),
-                                        this.maximumEffectiveRange) *
-                                    myGun.getDamage()
-                                    );
+                                val *= this.weaponCoefficient(otherGun) - this.weaponCoefficient(myGun);
                                 break;
                         }
-                        int len = world.getPathLength(friendlyUnits[i].getPosition(),
+                        int len = world.getPathLength(
+                                newStart,
                                 p.getPosition());
                         if (len != 0) {
                             val /= len + 1;
-                            if (val > goodness[i][j]) {
-                                goodness[i][j] = val;
-                                target = p.getPosition();
-                            }
+                        }
+                        if (val >= goodness[i][j]) {
+                            goodness[i][j] = val;
                         }
                     }
                     for (EnemyUnit e: enemyUnits) {
@@ -438,16 +425,57 @@ public class PlayerAI {
                             continue;
                         }
                         double val =
-                            this.fudgeFactor*this.pickupScore(this.gunToPick(
-                                    friendlyUnits[i].getCurrentWeapon())) -
-                            this.pickupScore(this.gunToPick(e.getCurrentWeapon()));
-                        int len = world.getPathLength(friendlyUnits[i].getPosition(),
+                            this.fudgeFactor * this.weaponCoefficient(friendlyUnits[i].getCurrentWeapon()) -
+                            this.weaponCoefficient(e.getCurrentWeapon());
+                        int len = world.getPathLength(newStart,
                                 e.getPosition());
                         val /= len+1;
                         val *= 5;
-                        if (val > goodness[i][j]) {
+                        if (val >= goodness[i][j]) {
                             goodness[i][j] = val;
-                            target = e.getPosition();
+                        }
+                    }
+                }
+            }
+            int[] optimalDirections = new int[4];
+            double maximumGoodness = Double.MIN_VALUE;
+            int total = 0;
+            for (int d0 = 0; d0 < Direction.values().length; d0++) {
+                if (world.getTile(
+                        Direction.values()[d0].movePoint(friendlyUnits[0].getPosition())) == TileType.WALL) {
+                    continue;
+                }
+                for (int d1 = 0; d1 < Direction.values().length; d1++) {
+                    if (world.getTile(
+                            Direction.values()[d1].movePoint(friendlyUnits[1].getPosition())) == TileType.WALL) {
+                        continue;
+                    }
+                    for (int d2 = 0; d2 < Direction.values().length; d2++) {
+                        if (world.getTile(
+                                Direction.values()[d2].movePoint(friendlyUnits[2].getPosition())) == TileType.WALL) {
+                            continue;
+                        }
+                        for (int d3 = 0; d3 < Direction.values().length; d3++) {
+                            if (world.getTile(
+                                    Direction.values()[d3].movePoint(friendlyUnits[3].getPosition())) == TileType.WALL) {
+                                continue;
+                            }
+                            // TODO: Add check for collision.
+                            // TODO: Add clumping mechanism.
+                            // TODO: Choosing to shoot.
+                            double curGoodness = 0;
+                            curGoodness += goodness[0][d0];
+                            curGoodness += goodness[1][d1];
+                            curGoodness += goodness[2][d2];
+                            curGoodness += goodness[3][d3];
+                            if (curGoodness > maximumGoodness) {
+                                maximumGoodness = curGoodness;
+                                optimalDirections[0] = d0;
+                                optimalDirections[1] = d1;
+                                optimalDirections[2] = d2;
+                                optimalDirections[3] = d3;
+                            }
+                            total++;
                         }
                     }
                 }
@@ -485,79 +513,11 @@ public class PlayerAI {
                     }
                 }
                 if (myTarget != null
-		                && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
+                        && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
                     friendlyUnits[i].shootAt(myTarget);
                     continue;
                 }
-                Point target = null;
-                double max = 0;
-                for (Pickup p: world.getPickups()) {
-                    if (!this.isGun(p)) {
-                        double val = 500.0 / friendlyUnits[i].getHealth();
-                        if (p.getPickupType() == PickupType.SHIELD) {
-                            val *= 3;
-                            int playnum = 0;
-                            for (FriendlyUnit fu : friendlyUnits) {
-                                if (fu.getHealth() > 0) {
-                                    playnum++;
-                                }
-                            }
-                            val /= playnum;
-                        }
-                        int len = world.getPathLength(friendlyUnits[i].getPosition(),
-                                p.getPosition());
-                        if (len != 0) {
-                            val /= len + 1;
-                            if (val > max) {
-                                max = val;
-                                target = p.getPosition();
-                            }
-                        }
-                    } else {
-                        double val = this.pickupScore(p.getPickupType()) -
-                            this.pickupScore(this.gunToPick(
-                                    friendlyUnits[i].getCurrentWeapon()));
-                        int len = world.getPathLength(friendlyUnits[i].getPosition(),
-                                p.getPosition());
-                        if (len != 0) {
-                            val /= len + 1;
-                            if (val > max) {
-                                max = val;
-                                target = p.getPosition();
-                            }
-                        }
-                    }
-                }
-                for (EnemyUnit e: enemyUnits) {
-                    if (e.getHealth() == 0) {
-                        continue;
-                    }
-                    double val =
-                        this.fudgeFactor*this.pickupScore(this.gunToPick(
-                                friendlyUnits[i].getCurrentWeapon())) -
-                        this.pickupScore(this.gunToPick(e.getCurrentWeapon()));
-                    int len = world.getPathLength(friendlyUnits[i].getPosition(),
-                            e.getPosition());
-                    val /= len + 1;
-                    val *= 5;
-                    if (val > max) {
-                        max = val;
-                        target = e.getPosition();
-                    }
-                }
-                if (target != null) {
-                    if (friendlyUnits[i].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
-                        friendlyUnits[i].move(directions[(int) (Math.random() *
-                            directions.length)]);
-                        continue;
-                    }
-                    friendlyUnits[i].move(world.getNextDirectionInPath(
-                        friendlyUnits[i].getPosition(),
-                        target));
-                    continue;
-                }
-                System.out.println("CAN'T WALK!");
-                friendlyUnits[i].move(Direction.WEST);
+                friendlyUnits[i].move(Direction.values()[optimalDirections[i]]);
             }
         } else {
             for (FriendlyUnit f: friendlyUnits) {
@@ -574,3 +534,4 @@ public class PlayerAI {
         }
     }
 }
+
