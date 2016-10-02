@@ -24,12 +24,14 @@ public class PlayerAI {
 
     double fudgeFactor = 1.01;
 
-    public PlayerAI() {
-        statsSet = false;
-        lastMoves = new Direction[4];
-    }
-
-    private int totalDistance(World world, Point... ps) {
+	/**
+	 * The totalDistance method evaluates how separated the friendly units are
+	 * by calculating the sum of their pairwise separations.
+	 * @param world The state of the world, containing a pathfinding method.
+	 * @param ps The set of points representing unit locations.
+	 * @return The total pairwise distance between points by shortest paths.
+	 */
+	private int totalDistance(World world, Point... ps) {
         int total = 0;
         for (Point p1 : ps) {
             for (Point p2 : ps) {
@@ -39,7 +41,14 @@ public class PlayerAI {
         return total / 2;
     }
 
-    private int enemyNumber(Team ours, Team other) {
+	/**
+	 * The enemyNumber method simply compares two teams to determine if they
+	 * are equal.
+	 * @param ours The first team.
+	 * @param other The second team.
+	 * @return Returns 1 if the teams are the same and -1 if they are different.
+	 */
+	private int enemyNumber(Team ours, Team other) {
         if (other == Team.NONE) {
             return 0;
         }
@@ -52,54 +61,13 @@ public class PlayerAI {
         return -1;
     }
 
-    private int supNormFast(Point x, Point y) {
-        Point d = x.subtract(y);
-        return Math.max(d.signum().getX()*x.getX(),d.signum().getY()*y.getY());
-    }
-
-    private ControlPoint findPriorityControlPoint(
-            World world,
-            Point p,
-            Team friendly,
-            double mainframeMultiplierCost,
-            double friendlyMultiplierCost,
-            double enemyMultiplierCost
-            ) {
-        /**
-         * Breaks if no control points on map.
-         */
-        ControlPoint[] allPoints = world.getControlPoints();
-        ControlPoint closest = null;
-        double longest = Double.NaN;
-        if (mainframeMultiplierCost != mainframeMultiplierCost) {
-            mainframeMultiplierCost = 1.0;
-        }
-        if (friendlyMultiplierCost != friendlyMultiplierCost) {
-            friendlyMultiplierCost = 1.0;
-        }
-        if (enemyMultiplierCost != enemyMultiplierCost) {
-            enemyMultiplierCost = 1.0;
-        }
-        for (ControlPoint cp: allPoints) {
-            double len = world.getPathLength(p, cp.getPosition());
-            if (cp.isMainframe()) {
-                len *= mainframeMultiplierCost;
-            }
-            if (enemyNumber(friendly, cp.getControllingTeam()) == -1) {
-                len *= enemyMultiplierCost;
-            }
-            if (enemyNumber(friendly, cp.getControllingTeam()) == 1) {
-                len *= friendlyMultiplierCost;
-            }
-            if (longest != longest || len < longest) {
-                longest = len;
-                closest = cp;
-            }
-        }
-        return closest;
-    }
-
-    private void setStats(
+	/**
+	 * Initializes the class variables with helpful constants.
+	 * @param world The world in which the game is taking place.
+	 * @param enemyUnits The array of enemy units.
+	 * @param friendlyUnits The array of friendly units.
+	 */
+	private void setStats(
             World world,
             EnemyUnit[] enemyUnits,
             FriendlyUnit[] friendlyUnits) {
@@ -171,7 +139,13 @@ public class PlayerAI {
         this.statsSet = true;
     }
 
-    private boolean isGun(Pickup p) {
+	/**
+	 * The isGun method determines whether a given item is one of the four guns
+	 * out of the six items that can be picked up.
+	 * @param p The item to be picked up.
+	 * @return Whether or not the item to be picked up is a gun.
+	 */
+	private boolean isGun(Pickup p) {
         if (p == null) {
             return false;
         }
@@ -185,7 +159,12 @@ public class PlayerAI {
         }
     }
 
-    private WeaponType pickToGun (Pickup p) {
+	/**
+	 * Returns the weapon type of an item that can be picked up if it is a gun.
+	 * @param p The item to be picked up.
+	 * @return The weapon type of the gun to be picked up and null otherwise.
+	 */
+	private WeaponType pickToGun (Pickup p) {
         if (p == null) {
             return null;
         }
@@ -199,17 +178,12 @@ public class PlayerAI {
         }
     }
 
-    private PickupType gunToPick (WeaponType w) {
-        switch(w) {
-            case LASER_RIFLE: return PickupType.WEAPON_LASER_RIFLE;
-            case MINI_BLASTER: return PickupType.WEAPON_MINI_BLASTER;
-            case SCATTER_GUN: return PickupType.WEAPON_SCATTER_GUN;
-            case RAIL_GUN: return PickupType.WEAPON_RAIL_GUN;
-            default: return null;
-        }
-    }
-
-    private int weaponCoefficient (WeaponType w) {
+	/**
+	 * The weaponCoefficient method calculates the value of a given gun.
+	 * @param w The type of gun in question.
+	 * @return The product of the gun's damage and effective range on the map.
+	 */
+	private int weaponCoefficient (WeaponType w) {
         if (w == null) {
             return 0;
         }
@@ -217,13 +191,28 @@ public class PlayerAI {
                 * w.getDamage();
     }
 
+	/**
+	 * The weaponCoefficient method calculates the larger weapon coefficient of
+	 * a gun and any gun that is located at a given point on the map.
+	 * @param w The type of weapon that is being considered.
+	 * @param world The world that the game is taking place in.
+	 * @param point The point where a second potential weapon could lie.
+	 * @return The larger weapon coefficient of the two weapons.
+	 */
     private int modifiedWeaponCoefficient (WeaponType w, World world,
                                            Point point) {
         return Math.max(weaponCoefficient(w),
                 weaponCoefficient(pickToGun(world.getPickupAtPosition(point))));
     }
 
-    private int unityFactor(World world, FriendlyUnit[] friendlyUnits) {
+	/**
+	 * The unityFactor method computes the total distance between the living
+	 * units out of the friendly units.
+	 * @param world The world that the game is taking place in.
+	 * @param friendlyUnits The friendly units whose separation is calculated.
+	 * @return The total separation between the friendly units.
+	 */
+	private int unityFactor(World world, FriendlyUnit[] friendlyUnits) {
         Direction[] directions = new Direction[4];
         for (int i = 0; i < directions.length; i++) {
             directions[i] = Direction.NOWHERE;
@@ -231,7 +220,15 @@ public class PlayerAI {
         return this.unityFactor(world, friendlyUnits, directions);
     }
 
-    private int unityFactor(World world, FriendlyUnit[] friendlyUnits,
+	/**
+	 * The unityFactor of the friendly units after they have been moved by one
+	 * tile in a given direction.
+	 * @param world The world that the game is taking place in.
+	 * @param friendlyUnits The friendly units whose separation is calculated.
+	 * @param directions The directions in which all the units move.
+	 * @return The total separation between the friendly units after a move.
+	 */
+	private int unityFactor(World world, FriendlyUnit[] friendlyUnits,
                             Direction[] directions) {
         Point[] points = new Point[4];
         int alive = 0;
