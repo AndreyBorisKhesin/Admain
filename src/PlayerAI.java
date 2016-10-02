@@ -438,10 +438,14 @@ public class PlayerAI {
                     int ourMainframes = 0;
                     int theirMainframes = 0;
                     for (ControlPoint cp : world.getControlPoints()) {
-                        if (cp.isMainframe() && enemyNumber(friendlyUnits[i].getTeam(), cp.getControllingTeam()) == 1) {
+                        if (cp.isMainframe()
+		                        && enemyNumber(friendlyUnits[i].getTeam(),
+		                        cp.getControllingTeam()) == 1) {
                             ourMainframes++;
                         }
-                        if (cp.isMainframe() && enemyNumber(friendlyUnits[i].getTeam(), cp.getControllingTeam()) == -1) {
+                        if (cp.isMainframe()
+		                        && enemyNumber(friendlyUnits[i].getTeam(),
+		                        cp.getControllingTeam()) == -1) {
                             theirMainframes++;
                         }
                     }
@@ -450,14 +454,15 @@ public class PlayerAI {
                         int len = world.getPathLength(newStart,
                                 cp.getPosition());
                         if (len != 0) {
-                            val /= len+1;
+                            val /= len + 1;
                         }
-                        if (enemyNumber(friendlyUnits[i].getTeam(), cp.getControllingTeam()) == 1) {
+                        if (enemyNumber(friendlyUnits[i].getTeam(),
+		                        cp.getControllingTeam()) == 1) {
                             val = Double.MIN_VALUE;
                         }
                         if (cp.isMainframe()) {
                             val *= 3;
-                            val /= (ourMainframes+0.5);
+                            val /= (ourMainframes + 0.5);
                         }
                         if (theirMainframes == 1) {
                             val *= 2;
@@ -515,11 +520,14 @@ public class PlayerAI {
                 if (moved[i]) {
                     continue;
                 }
-                Pickup pickupHere = world.getPickupAtPosition(friendlyUnits[i].getPosition());
+                Pickup pickupHere = world.getPickupAtPosition(
+                		friendlyUnits[i].getPosition());
                 if (pickupHere != null) {
                     if (!this.isGun(pickupHere) || (
-                                this.weaponCoefficient(friendlyUnits[i].getCurrentWeapon()) <
-                                this.weaponCoefficient(this.pickToGun(pickupHere)))) {
+                                this.weaponCoefficient(
+                                		friendlyUnits[i].getCurrentWeapon()) <
+                                this.weaponCoefficient(
+                                		this.pickToGun(pickupHere)))) {
                         friendlyUnits[i].pickupItemAtPosition();
                         continue;
                     }
@@ -536,10 +544,12 @@ public class PlayerAI {
                     if (e == null || e.getShieldedTurnsRemaining() > 0) {
                         continue;
                     }
-                    if (supNormFast(friendlyUnits[i].getPosition(), e.getPosition())
+                    if (supNormFast(friendlyUnits[i].getPosition(),
+		                    e.getPosition())
                             < closest) {
                         myTarget = e;
-                        closest = supNormFast(friendlyUnits[i].getPosition(), e.getPosition());
+                        closest = supNormFast(friendlyUnits[i].getPosition(),
+		                        e.getPosition());
                     }
                 }
                 if (myTarget != null
