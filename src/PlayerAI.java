@@ -513,12 +513,12 @@ public class PlayerAI {
 	    int theirMainframes = 0;
 	    for (ControlPoint cp : world.getControlPoints()) {
 		    if (cp.isMainframe()
-				    && enemyNumber(friendlyUnits[i].getTeam(),
+				    && enemyNumber(friendlyUnits[0].getTeam(),
 				    cp.getControllingTeam()) == 1) {
 			    ourMainframes++;
 		    }
 		    if (cp.isMainframe()
-				    && enemyNumber(friendlyUnits[i].getTeam(),
+				    && enemyNumber(friendlyUnits[0].getTeam(),
 				    cp.getControllingTeam()) == -1) {
 			    theirMainframes++;
 		    }
