@@ -1,10 +1,6 @@
-import com.orbischallenge.ctz.Constants;
 import com.orbischallenge.game.engine.*;
 import com.orbischallenge.ctz.objects.*;
 import com.orbischallenge.ctz.objects.enums.*;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class PlayerAI {
     /**
@@ -14,7 +10,7 @@ public class PlayerAI {
      * constant throughtout the game, to not have to compute them later. This
      * variable is used to indicate that this should only be done on the first turn.
      */
-    boolean statsSet;
+    boolean isRangeComputed;
 
     /**
      * The maximum distance a gun could be used to fire on this map.
@@ -53,7 +49,7 @@ public class PlayerAI {
      * stats set to false and last moves to an empty array.
      */
     public PlayerAI() {
-        statsSet = false;
+        isRangeComputed = false;
         lastMoves = new Direction[4];
     }
 
@@ -101,7 +97,7 @@ public class PlayerAI {
      * @param enemyUnits The array of enemy units.
      * @param friendlyUnits The array of friendly units.
      */
-    private void setStats(
+    private void computeRange(
             World world,
             EnemyUnit[] enemyUnits,
             FriendlyUnit[] friendlyUnits) {
@@ -160,7 +156,7 @@ public class PlayerAI {
         System.out.println(this.maximumEffectiveRange);
         // Indicate that the stats are set, and that we shouldn't run this
         // method anymore.
-        this.statsSet = true;
+        this.isRangeComputed = true;
     }
 
     /**
@@ -299,8 +295,8 @@ public class PlayerAI {
             EnemyUnit[] enemyUnits,
             FriendlyUnit[] friendlyUnits) {
         // If we haven't computed the statistics yet, remove it.
-        if (!this.statsSet) {
-            this.setStats(world, enemyUnits, friendlyUnits);
+        if (!this.isRangeComputed) {
+            this.computeRange(world, enemyUnits, friendlyUnits);
         }
         // Indicates whether or not a given unit has already moved. We use this
         // to avoid overriding instructions we passed already.
@@ -508,7 +504,7 @@ public class PlayerAI {
         }*/
         // for each person, for each direction,
         // take maximum of each possible target value.
-        // Memoize the goodness for this person direction thing.
+        // Memoize the actionValue for this person direction thing.
 	    int ourMainframes = 0;
 	    int theirMainframes = 0;
 	    for (ControlPoint cp : world.getControlPoints()) {
@@ -523,14 +519,14 @@ public class PlayerAI {
 			    theirMainframes++;
 		    }
 	    }
-        double[][] goodness =
+        double[][] actionValue =
             new double[friendlyUnits.length][Direction.values().length];
         for (int i = 0; i < friendlyUnits.length; i++) {
             for (int j = 0; j < Direction.values().length; j++) {
-                goodness[i][j] = -15000000;
+                actionValue[i][j] = -15000000;
                 if (moved[i]) {
                     if (Direction.values()[j] == Direction.NOWHERE) {
-                        goodness[i][j] = 0;
+                        actionValue[i][j] = 0;
                     }
                     continue;
                 }
@@ -578,8 +574,8 @@ public class PlayerAI {
                     if (len != 0) {
                         val /= len + 1;
                     }
-                    if (val >= goodness[i][j]) {
-                        goodness[i][j] = val;
+                    if (val >= actionValue[i][j]) {
+                        actionValue[i][j] = val;
                     }
                 }
                 if (!(friendlyUnits[i].getShieldedTurnsRemaining() > 0)) {
@@ -596,8 +592,8 @@ public class PlayerAI {
                                 e.getPosition());
                         val /= len + 1;
                         val *= 5;
-                        if (val >= goodness[i][j]) {
-                            goodness[i][j] = val;
+                        if (val >= actionValue[i][j]) {
+                            actionValue[i][j] = val;
                         }
                     }
                 }
@@ -619,8 +615,8 @@ public class PlayerAI {
                     if (theirMainframes == 1) {
                         val *= 2;
                     }
-                    if (val >= goodness[i][j]) {
-                        goodness[i][j] = val;
+                    if (val >= actionValue[i][j]) {
+                        actionValue[i][j] = val;
                     }
                 }
                 for (EnemyUnit enemyUnit : enemyUnits) {
@@ -631,7 +627,7 @@ public class PlayerAI {
                             enemyUnit.getPosition(),
                             friendlyUnits[i].getCurrentWeapon()
                                     .getRange())) {
-                        goodness[i][j] = Math.max(goodness[i][j],
+                        actionValue[i][j] = Math.max(actionValue[i][j],
                                 100d / world.getPathLength(
                                         Direction.values()[j].movePoint(
                                                 friendlyUnits[i].getPosition()),
@@ -767,27 +763,27 @@ public class PlayerAI {
                                     - friendlyNum * friendlyDamage - 10
 		                            * ourMainframes) + 1;
                         }
-                        double curGoodness = 0;
-                        curGoodness += goodness[0][d0]
+                        double curActionValue = 0;
+                        curActionValue += actionValue[0][d0]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed0 ? 0.5 : 1)
                                 * resultingHealth[0];
-                        curGoodness += goodness[1][d1]
+                        curActionValue += actionValue[1][d1]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed1 ? 0.5 : 1)
                                 * resultingHealth[1];
-                        curGoodness += goodness[2][d2]
+                        curActionValue += actionValue[2][d2]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed2 ? 0.5 : 1)
                                 * resultingHealth[2];
-                        curGoodness += goodness[3][d3]
+                        curActionValue += actionValue[3][d3]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed3 ? 0.5 : 1)
                                 * resultingHealth[3];
-                        curGoodness *= Math.pow(1d * currentUnity
+                        curActionValue *= Math.pow(1d * currentUnity
                                 / resultingUnity, 1d / minDistance);
-                        if (curGoodness > maximumGoodness) {
-                            maximumGoodness = curGoodness;
+                        if (curActionValue > maximumGoodness) {
+                            maximumGoodness = curActionValue;
                             optimalDirections[0] = d0;
                             optimalDirections[1] = d1;
                             optimalDirections[2] = d2;
