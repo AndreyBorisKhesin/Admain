@@ -509,6 +509,20 @@ public class PlayerAI {
         // for each person, for each direction,
         // take maximum of each possible target value.
         // Memoize the goodness for this person direction thing.
+	    int ourMainframes = 0;
+	    int theirMainframes = 0;
+	    for (ControlPoint cp : world.getControlPoints()) {
+		    if (cp.isMainframe()
+				    && enemyNumber(friendlyUnits[i].getTeam(),
+				    cp.getControllingTeam()) == 1) {
+			    ourMainframes++;
+		    }
+		    if (cp.isMainframe()
+				    && enemyNumber(friendlyUnits[i].getTeam(),
+				    cp.getControllingTeam()) == -1) {
+			    theirMainframes++;
+		    }
+	    }
         double[][] goodness =
             new double[friendlyUnits.length][Direction.values().length];
         for (int i = 0; i < friendlyUnits.length; i++) {
@@ -568,7 +582,6 @@ public class PlayerAI {
                         goodness[i][j] = val;
                     }
                 }
-
                 if (!(friendlyUnits[i].getShieldedTurnsRemaining() > 0)) {
                     for (EnemyUnit e : enemyUnits) {
                         if (e.getHealth() == 0) {
@@ -586,20 +599,6 @@ public class PlayerAI {
                         if (val >= goodness[i][j]) {
                             goodness[i][j] = val;
                         }
-                    }
-                }
-                int ourMainframes = 0;
-                int theirMainframes = 0;
-                for (ControlPoint cp : world.getControlPoints()) {
-                    if (cp.isMainframe()
-                            && enemyNumber(friendlyUnits[i].getTeam(),
-                            cp.getControllingTeam()) == 1) {
-                        ourMainframes++;
-                    }
-                    if (cp.isMainframe()
-                            && enemyNumber(friendlyUnits[i].getTeam(),
-                            cp.getControllingTeam()) == -1) {
-                        theirMainframes++;
                     }
                 }
                 for (ControlPoint cp : world.getControlPoints()) {
@@ -698,8 +697,10 @@ public class PlayerAI {
                     }
                     boolean lastMoveFailed2 = (
                             !friendlyUnits[2].didLastActionSucceed() &&
-                            friendlyUnits[2].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY);
-                    if (this.lastMoves[2] == Direction.values()[d2] && lastMoveFailed2) {
+                            friendlyUnits[2].getLastMoveResult()
+		                            == MoveResult.BLOCKED_BY_ENEMY);
+                    if (this.lastMoves[2] == Direction.values()[d2]
+		                    && lastMoveFailed2) {
                         continue;
                     }
                     for (int d3 = 0; d3 < Direction.values().length; d3++) {
@@ -713,8 +714,10 @@ public class PlayerAI {
                         }
                         boolean lastMoveFailed3 = (
                                 !friendlyUnits[3].didLastActionSucceed() &&
-                                friendlyUnits[3].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY);
-                        if (this.lastMoves[3] == Direction.values()[d3] && lastMoveFailed3) {
+                                friendlyUnits[3].getLastMoveResult()
+		                                == MoveResult.BLOCKED_BY_ENEMY);
+                        if (this.lastMoves[3] == Direction.values()[d3]
+		                        && lastMoveFailed3) {
                             continue;
                         }
                         Direction[] directions = new Direction[4];
@@ -761,7 +764,8 @@ public class PlayerAI {
                             }
                             resultingHealth[i] = Math.max(0, enemyHealth
                                     + enemyNum * enemyDamage - friendlyHealth
-                                    - friendlyNum * friendlyDamage) + 1;
+                                    - friendlyNum * friendlyDamage - 10
+		                            * ourMainframes) + 1;
                         }
                         double curGoodness = 0;
                         curGoodness += goodness[0][d0]
