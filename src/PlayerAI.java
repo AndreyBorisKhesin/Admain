@@ -4,6 +4,7 @@ import com.orbischallenge.ctz.objects.*;
 import com.orbischallenge.ctz.objects.enums.*;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class PlayerAI {
     static final Direction[] directions = {Direction.EAST, Direction.NORTH,
@@ -29,15 +30,14 @@ public class PlayerAI {
                                   Point end) {
         double[][] distances = new double[worldWidth][worldHeight];
         boolean[][] visited = new boolean[worldWidth][worldHeight];
-        ArrayList<Point>[][] paths =
-                new ArrayList<Point>[worldWidth][worldHeight];
+        List<List<List<Point>>> paths = new ArrayList<>();
         for (int i = 0; i < distances.length; i++) {
             for (int j = 0; j < distances[i].length; j++) {
-                paths[i][j] = new ArrayList<>();
+                paths.get(i).set(j, new ArrayList<>());
                 distances[i][j] = i == start.getX() && j == start.getY() ? 0 :
                         Double.MAX_VALUE;
                 if (i == start.getX() && j == start.getY()) {
-                    paths[i][j].add(start);
+                    paths.get(i).get(j).add(start);
                 }
             }
         }
@@ -57,12 +57,11 @@ public class PlayerAI {
                             newDistance) {
                         distances[considered.getX()][considered.getY()] =
                                 newDistance;
-                        paths[considered.getX()][considered.getY()] =
-                                (ArrayList<Point>)
-                                        paths[current.getX()][current.getY()]
-                                                .clone();
-                        paths[considered.getX()][considered.getY()]
-                                .add(considered);
+                        paths.get(considered.getX()).set(considered.getY(),
+                                paths.get(current.getX())
+		                                .get(current.getY()));
+	                    paths.get(considered.getX()).get(considered.getY())
+			                    .add(considered);
                     }
                 }
             }
@@ -80,7 +79,7 @@ public class PlayerAI {
             }
             current = next;
         }
-        return paths[end.getX()][end.getY()];
+        return (ArrayList<Point>) paths.get(end.getX()).get(end.getY());
     }
 
     private int totalDistance (World world, Point... ps) {
