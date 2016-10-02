@@ -587,10 +587,10 @@ public class PlayerAI {
             if (world.getTile(new0) == TileType.WALL) {
                 continue;
             }
-            if (
-                    this.lastMoves[0] == Direction.values()[d0] &&
+            boolean lastMoveFailed0 = (
                     !friendlyUnits[0].didLastActionSucceed() &&
-                    friendlyUnits[0].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
+                    friendlyUnits[0].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY);
+            if (this.lastMoves[0] == Direction.values()[d0] && lastMoveFailed0) {
                 continue;
             }
             for (int d1 = 0; d1 < Direction.values().length; d1++) {
@@ -600,10 +600,10 @@ public class PlayerAI {
                         || new1.equals(new0)) {
                     continue;
                 }
-                if (
-                        this.lastMoves[1] == Direction.values()[d1] &&
+                boolean lastMoveFailed1 = (
                         !friendlyUnits[1].didLastActionSucceed() &&
-                        friendlyUnits[1].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
+                        friendlyUnits[1].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY);
+                if (this.lastMoves[1] == Direction.values()[d1] && lastMoveFailed1) {
                     continue;
                 }
                 for (int d2 = 0; d2 < Direction.values().length; d2++) {
@@ -613,10 +613,10 @@ public class PlayerAI {
                             || new2.equals(new0) || new2.equals(new1)) {
                         continue;
                     }
-                    if (
-                            this.lastMoves[2] == Direction.values()[d2] &&
+                    boolean lastMoveFailed2 = (
                             !friendlyUnits[2].didLastActionSucceed() &&
-                            friendlyUnits[2].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
+                            friendlyUnits[2].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY);
+                    if (this.lastMoves[2] == Direction.values()[d2] && lastMoveFailed2) {
                         continue;
                     }
                     for (int d3 = 0; d3 < Direction.values().length; d3++) {
@@ -627,10 +627,10 @@ public class PlayerAI {
                                 || new3.equals(new2)) {
                             continue;
                         }
-                        if (
-                                this.lastMoves[3] == Direction.values()[d3] &&
+                        boolean lastMoveFailed3 = (
                                 !friendlyUnits[3].didLastActionSucceed() &&
-                                friendlyUnits[3].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
+                                friendlyUnits[3].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY);
+                        if (this.lastMoves[3] == Direction.values()[d3] && lastMoveFailed3) {
                             continue;
                         }
                         Direction[] directions = new Direction[4];
@@ -641,10 +641,10 @@ public class PlayerAI {
                         int resultingUnity = this.unityFactor(world,
                                 friendlyUnits, directions);
                         double curGoodness = 0;
-                        curGoodness += goodness[0][d0];
-                        curGoodness += goodness[1][d1];
-                        curGoodness += goodness[2][d2];
-                        curGoodness += goodness[3][d3];
+                        curGoodness += goodness[0][d0] * (lastMoveFailed0 ? 0.5 : 1);
+                        curGoodness += goodness[1][d1] * (lastMoveFailed1 ? 0.5 : 1);
+                        curGoodness += goodness[2][d2] * (lastMoveFailed2 ? 0.5 : 1);
+                        curGoodness += goodness[3][d3] * (lastMoveFailed3 ? 0.5 : 1);
                         curGoodness *= Math.pow((1d*currentUnity)
                                 / resultingUnity, 0.0/*1d / (3 + minDistance)*/);
                         //TODO fiddle with this exponent more
