@@ -414,7 +414,7 @@ public class PlayerAI {
                     EnemyUnit e = world.getClosestShootableEnemyInDirection(
                             friendlyUnits[i],
                             d);
-                    if (e == null) {
+                    if (e == null || e.getShieldedTurnsRemaining() > 0) {
                         continue;
                     }
                     if (supNormFast(friendlyUnits[i].getPosition(), e.getPosition())
