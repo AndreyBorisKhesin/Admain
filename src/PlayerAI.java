@@ -275,6 +275,9 @@ public class PlayerAI {
         if (!this.statsSet) {
             this.setStats(world, enemyUnits, friendlyUnits);
         }
+        for (FriendlyUnit f : friendlyUnits) {
+            System.out.println(f.getLastMoveResult());
+        }
         boolean[] moved = new boolean[4];
         for (int i = 0; i < 4; i++) {
 	        moved[i] = friendlyUnits[i].getHealth() == 0;
@@ -437,7 +440,7 @@ public class PlayerAI {
             new double[friendlyUnits.length][Direction.values().length];
         for (int i = 0; i < friendlyUnits.length; i++) {
             for (int j = 0; j < Direction.values().length; j++) {
-                goodness[i][j] = Double.MIN_VALUE;
+                goodness[i][j] = -15000000;
                 if (moved[i]) {
 	                if (Direction.values()[j] == Direction.NOWHERE) {
 		                goodness[i][j] = 0;
@@ -465,7 +468,7 @@ public class PlayerAI {
                             }
                         case REPAIR_KIT:
                             if (friendlyUnits[i].getHealth() == 0) {
-                                val = Double.MIN_VALUE;
+                                val = -15000000;
                             } else {
                                 val *= 1000.0
 	                                    / friendlyUnits[i].getHealth();
@@ -532,7 +535,7 @@ public class PlayerAI {
                     }
                     if (enemyNumber(friendlyUnits[i].getTeam(),
 	                        cp.getControllingTeam()) == 1) {
-                        val = Double.MIN_VALUE;
+                        val = -15000000;
                     }
                     if (cp.isMainframe()) {
                         val *= 3;
@@ -601,8 +604,8 @@ public class PlayerAI {
                         curGoodness += goodness[1][d1];
                         curGoodness += goodness[2][d2];
                         curGoodness += goodness[3][d3];
-                        curGoodness *= Math.pow(currentUnity
-	                            / resultingUnity, 0.5);
+                        curGoodness *= Math.pow((1d*currentUnity)
+	                            / resultingUnity, 0.1);
                         //TODO fiddle with this exponent more
                         if (curGoodness > maximumGoodness) {
                             maximumGoodness = curGoodness;
