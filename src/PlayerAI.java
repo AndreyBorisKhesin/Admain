@@ -420,7 +420,7 @@ public class PlayerAI {
                             goodness[i][j] = val;
                         }
                     }
-                    for (EnemyUnit e: enemyUnits) {
+                    for (EnemyUnit e : enemyUnits) {
                         if (e.getHealth() == 0) {
                             continue;
                         }
@@ -431,6 +431,37 @@ public class PlayerAI {
                                 e.getPosition());
                         val /= len+1;
                         val *= 5;
+                        if (val >= goodness[i][j]) {
+                            goodness[i][j] = val;
+                        }
+                    }
+                    int ourMainframes = 0;
+                    int theirMainframes = 0;
+                    for (ControlPoint cp : world.getControlPoints()) {
+                        if (cp.isMainframe() && enemyNumber(friendlyUnits[i].getTeam(), cp.getControllingTeam()) == 1) {
+                            ourMainframes++;
+                        }
+                        if (cp.isMainframe() && enemyNumber(friendlyUnits[i].getTeam(), cp.getControllingTeam()) == -1) {
+                            theirMainframes++;
+                        }
+                    }
+                    for (ControlPoint cp : world.getControlPoints()) {
+                        double val = 25;
+                        int len = world.getPathLength(newStart,
+                                cp.getPosition());
+                        if (len != 0) {
+                            val /= len+1;
+                        }
+                        if (enemyNumber(friendlyUnits[i].getTeam(), cp.getControllingTeam()) == 1) {
+                            val = Double.MIN_VALUE;
+                        }
+                        if (cp.isMainframe()) {
+                            val *= 3;
+                            val /= (ourMainframes+0.5);
+                        }
+                        if (theirMainframes == 1) {
+                            val *= 2;
+                        }
                         if (val >= goodness[i][j]) {
                             goodness[i][j] = val;
                         }
@@ -487,9 +518,8 @@ public class PlayerAI {
                 Pickup pickupHere = world.getPickupAtPosition(friendlyUnits[i].getPosition());
                 if (pickupHere != null) {
                     if (!this.isGun(pickupHere) || (
-                            this.pickupScore(
-                                    this.gunToPick(friendlyUnits[i].getCurrentWeapon())) <
-                            this.pickupScore(pickupHere.getPickupType()))) {
+                                this.weaponCoefficient(friendlyUnits[i].getCurrentWeapon()) <
+                                this.weaponCoefficient(this.pickToGun(pickupHere)))) {
                         friendlyUnits[i].pickupItemAtPosition();
                         continue;
                     }
