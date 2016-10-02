@@ -570,6 +570,14 @@ public class PlayerAI {
                 }
             }
         }
+        int minDistance = Integer.MAX_VALUE;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                minDistance = Math.min(minDistance, world.getPathLength(
+                        friendlyUnits[i].getPosition(),
+                        enemyUnits[j].getPosition()));
+            }
+        }
         int[] optimalDirections = new int[4];
         double maximumGoodness = Double.MIN_VALUE;
         int currentUnity = this.unityFactor(world, friendlyUnits);
@@ -638,7 +646,7 @@ public class PlayerAI {
                         curGoodness += goodness[2][d2];
                         curGoodness += goodness[3][d3];
                         curGoodness *= Math.pow((1d*currentUnity)
-                                / resultingUnity, 0.1);
+                                / resultingUnity, 1d / (3 + minDistance));
                         //TODO fiddle with this exponent more
                         if (curGoodness > maximumGoodness) {
                             maximumGoodness = curGoodness;
