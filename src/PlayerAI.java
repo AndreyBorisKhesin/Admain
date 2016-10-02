@@ -34,8 +34,9 @@ public class PlayerAI {
         boolean[][] visited = new boolean[worldWidth][worldHeight];
         List<List<List<Point>>> paths = new ArrayList<>();
         for (int i = 0; i < distances.length; i++) {
+            paths.add(new ArrayList<>());
             for (int j = 0; j < distances[i].length; j++) {
-                paths.get(i).set(j, new ArrayList<>());
+                paths.get(i).add(new ArrayList<>());
                 distances[i][j] = i == start.getX() && j == start.getY() ? 0 :
                         Double.MAX_VALUE;
                 if (i == start.getX() && j == start.getY()) {
@@ -44,7 +45,9 @@ public class PlayerAI {
             }
         }
         Point current = start;
-        while (!visited[end.getX()][end.getY()]) {
+        while (
+                world.isWithinBounds(end) &&
+                !visited[end.getX()][end.getY()]) {
             visited[current.getX()][current.getY()] = true;
             for (Direction direction : directions) {
                 Point considered = direction.movePoint(current);
@@ -68,16 +71,15 @@ public class PlayerAI {
                     double newDistance =
                             distances[current.getX()][current.getY()] +
 		                            Math.max(1, nodeWeight + 1);
-                    //node weight of considered goes instead of the 1 above
                     if (distances[considered.getX()][considered.getY()] >
                             newDistance) {
                         distances[considered.getX()][considered.getY()] =
                                 newDistance;
                         paths.get(considered.getX()).set(considered.getY(),
                                 paths.get(current.getX())
-		                                .get(current.getY()));
-	                    paths.get(considered.getX()).get(considered.getY())
-			                    .add(considered);
+                                        .get(current.getY()));
+                        paths.get(considered.getX()).get(considered.getY())
+                                .add(considered);
                     }
                 }
             }
@@ -185,13 +187,13 @@ public class PlayerAI {
         System.out.println(this.numberOfMainframes);
 
         Point p = Point.origin();
-        this.worldHeight = -1;
+        this.worldHeight = 0;
         while (world.isWithinBounds(p)) {
             p = p.add(new Point(0,1));
             this.worldWidth++;
         }
         p = Point.origin();
-        this.worldHeight = -1;
+        this.worldHeight = 0;
         while (world.isWithinBounds(p)) {
             p = p.add(new Point(1,0));
             this.worldHeight++;
@@ -353,14 +355,47 @@ public class PlayerAI {
         }
         System.out.println(this.unityFactor(world, friendlyUnits));
         if (this.numberOfControlPoints > -1) {
-            for (FriendlyUnit f: friendlyUnits) {
-                Pickup pickupHere = world.getPickupAtPosition(f.getPosition());
+            boolean[] moved = new boolean[4];
+            // Determine if I should shield.
+            for (int i = 0; i < 4; i++) {
+                int totalDamage = 0;
+                int enemyNum = 0;
+                for (EnemyUnit e: enemyUnits) {
+                    if (world.canShooterShootTarget(
+                        e.getPosition(),
+                        friendlyUnits[i].getPosition(),
+                        e.getCurrentWeapon().getRange())) {
+                        totalDamage += e.getCurrentWeapon().getDamage();
+                        enemyNum++;
+                    }
+                }
+                if (totalDamage*enemyNum >= friendlyUnits[i].getHealth() && friendlyUnits[i].getNumShields() > 0) {
+                    friendlyUnits[i].activateShield();
+                    moved[i] = true;
+                }
+            }
+            // for each person, for each direction, take maximum of each possible target value.
+            // Memoize the goodness for this person direction thing.
+            //
+            //
+            double[][] goodness =
+                new double[friendlyUnits.length][Direction.values().length];
+            for (int i = 0; i < friendlyUnits.length; i++) {
+                for (int j = 0; j < Direction.values().length; j++) {
+                    goodness[i][j] = Double.MIN_VALUE;
+                }
+            }
+            for (int i = 0; i < 4; i++) {
+                if (moved[i]) {
+                    continue;
+                }
+                Pickup pickupHere = world.getPickupAtPosition(friendlyUnits[i].getPosition());
                 if (pickupHere != null) {
                     if (!this.isGun(pickupHere) || (
                             this.pickupScore(
-                            		this.gunToPick(f.getCurrentWeapon())) <
+                                    this.gunToPick(friendlyUnits[i].getCurrentWeapon())) <
                             this.pickupScore(pickupHere.getPickupType()))) {
-                        f.pickupItemAtPosition();
+                        friendlyUnits[i].pickupItemAtPosition();
                         continue;
                     }
                 }
@@ -370,30 +405,41 @@ public class PlayerAI {
                     if (d == Direction.NOWHERE) {
                         continue;
                     }
-                    EnemyUnit e = world.getClosestShootableEnemyInDirection(f,
-		                    d);
+                    EnemyUnit e = world.getClosestShootableEnemyInDirection(
+                            friendlyUnits[i],
+                            d);
                     if (e == null) {
                         continue;
                     }
-                    if (supNormFast(f.getPosition(), e.getPosition())
-		                    < closest) {
+                    if (supNormFast(friendlyUnits[i].getPosition(), e.getPosition())
+                            < closest) {
                         myTarget = e;
-                        closest = supNormFast(f.getPosition(), e.getPosition());
+                        closest = supNormFast(friendlyUnits[i].getPosition(), e.getPosition());
                     }
                 }
                 if (myTarget != null) {
-                    f.shootAt(myTarget);
+                    friendlyUnits[i].shootAt(myTarget);
                     continue;
                 }
                 Point target = null;
                 double max = 0;
                 for (Pickup p: world.getPickups()) {
                     if (!this.isGun(p)) {
-                        double val = 500.0 / f.getHealth();
-	                    ArrayList<Point> path = path(world, enemyUnits,
-			                    f.getPosition(), p.getPosition(), f);
+                        double val = 500.0 / friendlyUnits[i].getHealth();
+                        if (p.getPickupType() == PickupType.SHIELD) {
+                            val *= 3;
+                            int playnum = 0;
+                            for (FriendlyUnit fu : friendlyUnits) {
+                                if (fu.getHealth() > 0) {
+                                    playnum++;
+                                }
+                            }
+                            val /= playnum;
+                        }
+                        ArrayList<Point> path = path(world, enemyUnits,
+                                friendlyUnits[i].getPosition(), p.getPosition(), friendlyUnits[i]);
 //                        int len = world.getPathLength(f.getPosition(),
-//		                        p.getPosition());
+//                                p.getPosition());
                         if (path.size() != 1) {
                             val /= path.size();
                             if (val > max) {
@@ -404,11 +450,11 @@ public class PlayerAI {
                     } else {
                         double val = this.pickupScore(p.getPickupType()) -
                             this.pickupScore(this.gunToPick(
-                            		f.getCurrentWeapon()));
-	                    ArrayList<Point> path = path(world, enemyUnits,
-			                    f.getPosition(), p.getPosition(), f);
+                                    friendlyUnits[i].getCurrentWeapon()));
+                        ArrayList<Point> path = path(world, enemyUnits,
+                                friendlyUnits[i].getPosition(), p.getPosition(), friendlyUnits[i]);
 //                        int len = world.getPathLength(f.getPosition(),
-//		                        p.getPosition());
+//                                p.getPosition());
                         if (path.size() != 1) {
                             val /= path.size();
                             if (val > max) {
@@ -424,12 +470,12 @@ public class PlayerAI {
                     }
                     double val =
                         this.fudgeFactor*this.pickupScore(this.gunToPick(
-                        		f.getCurrentWeapon())) -
+                                friendlyUnits[i].getCurrentWeapon())) -
                         this.pickupScore(this.gunToPick(e.getCurrentWeapon()));
-	                ArrayList<Point> path = path(world, enemyUnits,
-			                f.getPosition(), e.getPosition(), f);
+                    ArrayList<Point> path = path(world, enemyUnits,
+                            friendlyUnits[i].getPosition(), e.getPosition(), friendlyUnits[i]);
 //                        int len = world.getPathLength(f.getPosition(),
-//		                        p.getPosition());
+//                                p.getPosition());
                     val /= path.size();
                     val *= 5;
                     if (val > max) {
@@ -438,18 +484,18 @@ public class PlayerAI {
                     }
                 }
                 if (target != null) {
-                    if (f.getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
-                        f.move(directions[(int) (Math.random() *
+                    if (friendlyUnits[i].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
+                        friendlyUnits[i].move(directions[(int) (Math.random() *
                             directions.length)]);
                         continue;
                     }
-                    f.move(world.getNextDirectionInPath(
-                        f.getPosition(),
+                    friendlyUnits[i].move(world.getNextDirectionInPath(
+                        friendlyUnits[i].getPosition(),
                         target));
                     continue;
                 }
                 System.out.println("CAN'T WALK!");
-                f.move(Direction.WEST);
+                friendlyUnits[i].move(Direction.WEST);
             }
         } else {
             for (FriendlyUnit f: friendlyUnits) {
