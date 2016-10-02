@@ -369,7 +369,13 @@ public class PlayerAI {
                         enemyNum++;
                     }
                 }
-                if (totalDamage*enemyNum >= friendlyUnits[i].getHealth() && friendlyUnits[i].getNumShields() > 0) {
+                if (friendlyUnits[i].getShieldedTurnsRemaining()>0){
+	            for (int k = 0; k < 100; k++) {
+		            System.out.println(friendlyUnits[i].getShieldedTurnsRemaining());
+	            }}
+                if (totalDamage * enemyNum >= friendlyUnits[i].getHealth()
+		                && friendlyUnits[i].getNumShields() > 0
+		                && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
                     friendlyUnits[i].activateShield();
                     moved[i] = true;
                 }
@@ -472,7 +478,7 @@ public class PlayerAI {
                     EnemyUnit e = world.getClosestShootableEnemyInDirection(
                             friendlyUnits[i],
                             d);
-                    if (e == null) {
+                    if (e == null || e.getShieldedTurnsRemaining() > 0) {
                         continue;
                     }
                     if (supNormFast(friendlyUnits[i].getPosition(), e.getPosition())
@@ -481,7 +487,8 @@ public class PlayerAI {
                         closest = supNormFast(friendlyUnits[i].getPosition(), e.getPosition());
                     }
                 }
-                if (myTarget != null) {
+                if (myTarget != null
+		                && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
                     friendlyUnits[i].shootAt(myTarget);
                     continue;
                 }
