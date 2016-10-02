@@ -38,17 +38,6 @@ public class PlayerAI {
     Direction[] lastMoves;
 
     /**
-     * Indicates the desire by a given unit to fight.
-     *
-     * If we have a better weapon than the enemy, we wish to fight them, but if
-     * they have a better weapon, then we don't. However, if we have balanced
-     * weapons, our behaviour is not so straight forward. This constant is used
-     * to indicate our willingness to fight. The greater this constant, the
-     * more a unit with equal weapons will wish to fight another.
-     */
-    final double courageCoefficient = 1.5;
-
-    /**
      * Default constructor for PlayerAI class that initialized the variables
      * stats set to false and last moves to an empty array.
      */
@@ -353,8 +342,11 @@ public class PlayerAI {
                 }
             }
         }
+        // Select targets to fire upon, if possible.
         EnemyUnit[] targets = new EnemyUnit[4];
         double maximumScore = 0;
+        // Consider all possible ways to choosing targets by each friendly
+        // unit, with special consideration for some factors.
         for (int t0 = 0; t0 < 4; t0++) {
             if (enemyUnits[t0].getHealth() == 0
                     || enemyUnits[t0].getShieldedTurnsRemaining() > 0) {
@@ -376,6 +368,9 @@ public class PlayerAI {
                                 > 0) {
                             continue;
                         }
+                        // For each such combination of targets, calculate the
+                        // amount of damage dealt to each enemy target, if we
+                        // can hit them.
                         int[] damages = new int[4];
                         int[] shooters = new int[4];
                         for (int i = 0; i < 4; i++) {
@@ -414,6 +409,11 @@ public class PlayerAI {
                                     .getDamage();
                             shooters[t3]++;
                         }
+                        // The score is an attractiveness rating of this given
+                        // attack pattern. The less health the opponent has,
+                        // the more we want to shoot them. The more damage we
+                        // deal, the better the attack pattern. Then, maximize
+                        // this score over attack patterns.
                         double score = 0.0;
                         if (enemyUnits[0].getHealth() > 0) {
                             score += (1d * Math.min(damages[0] * shooters[0],
@@ -446,6 +446,8 @@ public class PlayerAI {
                 }
             }
         }
+        // After having determined the best attack combination, execute that
+        // attack pattern.
         for (int i = 0; i < 4; i++) {
             if (moved[i]) {
                 continue;
@@ -458,76 +460,42 @@ public class PlayerAI {
                 }
             }
         }
-        /*for (int i = 0; i < 4; i++) {
-            if (moved[i]) {
-                continue;
-            }
-            EnemyUnit myTarget = null;
-            //int closest = 20;
-            int maxDamage = Integer.MIN_VALUE;
-            for (Direction d: Direction.values()) {
-                if (d == Direction.NOWHERE) {
-                    continue;
-                }
-                EnemyUnit e = world.getClosestShootableEnemyInDirection(
-                        friendlyUnits[i],
-                        d);
-                if (e == null || e.getShieldedTurnsRemaining() > 0) {
-                    continue;
-                }
-                int damage = 0;
-                int shooters = 0;
-                for (int j = 0; j < 4; j++) {
-                    if (world.canShooterShootTarget(
-                            friendlyUnits[j].getPosition(), e.getPosition(),
-                            friendlyUnits[j].getCurrentWeapon().getRange())
-                            && friendlyUnits[j].getShieldedTurnsRemaining()
-                            == 0 && !moved[j]){
-                        shooters++;
-                        damage += friendlyUnits[j].getCurrentWeapon()
-                                .getDamage();
-                    }
-                }
-                damage = Math.min(damage * shooters, e.getHealth());
-//                    if (supNormFast(friendlyUnits[i].getPosition(),
-//                            e.getPosition())
-//                            < closest) {
-                if (damage > maxDamage) {
-                    maxDamage = damage;
-                    myTarget = e;
-//                        closest = supNormFast(friendlyUnits[i].getPosition(),
-//                                e.getPosition());
-                }
-            }
-            if (myTarget != null
-                    && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
-                friendlyUnits[i].shootAt(myTarget);
-                moved[i] = true;
-                continue;
-            }
-        }*/
-        // for each person, for each direction,
-        // take maximum of each possible target value.
-        // Memoize the goodness for this person direction thing.
+        // We now compute the action value of all possible moves. For each
+        // friendly unit, and for each direction they might move in, we
+        // compute the value of that position. This is a complicated function
+        // of a number of a things, including pickups, enemies, control points
+        // and more.
         double[][] goodness =
             new double[friendlyUnits.length][Direction.values().length];
         for (int i = 0; i < friendlyUnits.length; i++) {
             for (int j = 0; j < Direction.values().length; j++) {
                 goodness[i][j] = -15000000;
+                // If we have already decided on an action, then we aren't
+                // moving anywhere anyway.
                 if (moved[i]) {
                     if (Direction.values()[j] == Direction.NOWHERE) {
                         goodness[i][j] = 0;
                     }
                     continue;
                 }
+                // Compute the new location we would move to, if we were to
+                // move in the given direction, and cancel if we would walk
+                // into a wall.
                 Point newStart = Direction.values()[j].movePoint(
                         friendlyUnits[i].getPosition());
                 if (world.getTile(newStart) == TileType.WALL) {
                     continue;
                 }
+                // Compute how good this location is with regards to each
+                // pickup. The exact function differs for each pickup type.
                 for (Pickup p: world.getPickups()) {
                     double val = 1.0;
                     switch(p.getPickupType()) {
+                        // Shields are usually less useful than repair kits.
+                        // However, if we have several units dead, shields
+                        // become more useful. Thus, the value of a shield is
+                        // proportional to the value of a repair kit, divided
+                        // byt the number of players.
                         case SHIELD:
                             val *= 3;
                             int playnum = 0;
@@ -539,6 +507,9 @@ public class PlayerAI {
                             if (playnum != 0) {
                                 val /= playnum;
                             }
+                            // Falls through...
+                        // The less health you have, the less you want a repair
+                        // kit. This function is designed to do that.
                         case REPAIR_KIT:
                             if (friendlyUnits[i].getHealth() == 0) {
                                 val = -15000000;
@@ -547,6 +518,10 @@ public class PlayerAI {
                                         / friendlyUnits[i].getHealth();
                             }
                             break;
+                        // For each weapon, the attractiveness is dependant on
+                        // how much better than our current weapon it is. If it
+                        // is worse than our current weapon, we don't care for
+                        // it.
                         case WEAPON_LASER_RIFLE:
                         case WEAPON_MINI_BLASTER:
                         case WEAPON_SCATTER_GUN:
@@ -558,36 +533,60 @@ public class PlayerAI {
                                     - this.weaponCoefficient(myGun);
                             break;
                     }
+                    // After computing the individual value of a pickup, we
+                    // compute how far away it is. The further away a pickup
+                    // is, the less desirable it is, so we divide by path
+                    // length.
                     int len = world.getPathLength(
                             newStart,
                             p.getPosition());
                     if (len != 0) {
                         val /= len + 1;
                     }
+                    // Find the maximum value of all pickups. Store that as the
+                    // action value of this direction for this player, for now.
                     if (val >= goodness[i][j]) {
                         goodness[i][j] = val;
                     }
                 }
-
+                // Now, compute how good this location is with respect to
+                // enemy positioning. If you are shielded, enemies basically
+                // don't exist, barring a few really rare situations.
                 if (!(friendlyUnits[i].getShieldedTurnsRemaining() > 0)) {
                     for (EnemyUnit e : enemyUnits) {
+                        // Ignore dead enemies.
                         if (e.getHealth() == 0) {
                             continue;
                         }
+                        // If we have a better weapon than the enemy, we wish
+                        // to fight them, but if they have a better weapon,
+                        // then we don't. However, if we have balanced weapons,
+                        // our behaviour is not so straight forward. We use a
+                        // constant factor to indicate our willingness to fight.
+                        // The greater this constant, the more a unit with equal
+                        // weapons will wish to fight another.
                         double val =
-                            this.courageCoefficient * this.weaponCoefficient(
+                            1.5 * this.weaponCoefficient(
                                     friendlyUnits[i].getCurrentWeapon()) -
                             this.modifiedWeaponCoefficient(e.getCurrentWeapon(),
                                     world, e.getPosition());
+                        // Once again, enemies further away are less desirable.
                         int len = world.getPathLength(newStart,
                                 e.getPosition());
                         val /= len + 1;
+                        // Arbitrary scalar factor to increase desire to target
+                        // enemy units.
                         val *= 5;
+                        // Find the maximum action value among all enemies.
+                        // Store that as the action value of this direction
+                        // for this player, if it is larger.
                         if (val >= goodness[i][j]) {
                             goodness[i][j] = val;
                         }
                     }
                 }
+                // Compute the number of mainframes we control and the number
+                // of mainframes our enemies control.
                 int ourMainframes = 0;
                 int theirMainframes = 0;
                 for (ControlPoint cp : world.getControlPoints()) {
@@ -602,28 +601,44 @@ public class PlayerAI {
                         theirMainframes++;
                     }
                 }
+                // Compute how good this location is with respect to control
+                // points.
                 for (ControlPoint cp : world.getControlPoints()) {
                     double val = 50;
+                    // The further away a point is, the less useful it is.
                     int len = world.getPathLength(newStart,
                             cp.getPosition());
                     if (len != 0) {
                         val /= len;
                     }
+                    // If it is already held by us, we do not care for it, and
+                    // would rather head elsewhere.
                     if (enemyNumber(friendlyUnits[i].getTeam(),
                             cp.getControllingTeam()) == 1) {
                         val = -15000000;
                     }
+                    // Mainframes are more desirable than control points. The
+                    // fewer mainframes we have, the more of them we want, as
+                    // a mainframe is a great advantage.
                     if (cp.isMainframe()) {
                         val *= 3;
                         val /= (ourMainframes + 0.5);
                     }
+                    // If our enemies are down to their last mainframe, we want
+                    // to take it, as that would be a great advantage.
                     if (theirMainframes == 1) {
                         val *= 2;
                     }
+                    // As always, store the maximum action value.
                     if (val >= goodness[i][j]) {
                         goodness[i][j] = val;
                     }
                 }
+                // Plan ahead for enemy shots. For every enemy unit, if we can
+                // hit them next turn from a given position, that position is
+                // more attractive, as we can deal damage. Thus, we account for
+                // that. This also leads to units surrounding enemy units, and
+                // enabling focus fire.
                 for (EnemyUnit enemyUnit : enemyUnits) {
                     if (enemyUnit.getHealth() > 0
                             && world.canShooterShootTarget(
@@ -641,6 +656,8 @@ public class PlayerAI {
                 }
             }
         }
+        // Compute the minimum distance between any enemy unit and any friendly
+        // unit. This is used later on.
         int minDistance = Integer.MAX_VALUE;
         for (int i = 0; i < 4; i++) {
             if (friendlyUnits[i].getHealth() == 0) {
@@ -655,15 +672,25 @@ public class PlayerAI {
                         enemyUnits[j].getPosition()));
             }
         }
+        // Compute the best move, based on action values we computed earlier.
         int[] optimalDirections = new int[4];
         double maximumGoodness = Double.MIN_VALUE;
+        // The unity factor is how close our units are together. A greater
+        // unity factor indicates more clustered units, which is more useful
+        // in a firefight, as it enables focus fire.
         int currentUnity = this.unityFactor(world, friendlyUnits);
+        // For each possible combination of directions people our units can
+        // walk, do the following.
         for (int d0 = 0; d0 < Direction.values().length; d0++) {
+            // Units can't walk into walls. Discard this move.
             Point new0 = Direction.values()[d0].movePoint(
                     friendlyUnits[0].getPosition());
             if (world.getTile(new0) == TileType.WALL) {
                 continue;
             }
+            // If we tried to the same move last turn, and it failed, discard
+            // this move. This is to prevent traffic jams, where our units line
+            // up because two units keep trying to enter the same space.
             boolean lastMoveFailed0 = (
                     !friendlyUnits[0].didLastActionSucceed() &&
                     friendlyUnits[0].getLastMoveResult()
@@ -672,6 +699,7 @@ public class PlayerAI {
                     && lastMoveFailed0) {
                 continue;
             }
+            // Repeat this for every unit.
             for (int d1 = 0; d1 < Direction.values().length; d1++) {
                 Point new1 = Direction.values()[d1].movePoint(
                         friendlyUnits[1].getPosition());
@@ -717,6 +745,8 @@ public class PlayerAI {
                         if (this.lastMoves[3] == Direction.values()[d3] && lastMoveFailed3) {
                             continue;
                         }
+                        // Compute the unity factor after we have moved our
+                        // units.
                         Direction[] directions = new Direction[4];
                         directions[0] = Direction.values()[d0];
                         directions[1] = Direction.values()[d1];
@@ -724,6 +754,7 @@ public class PlayerAI {
                         directions[3] = Direction.values()[d3];
                         int resultingUnity = this.unityFactor(world,
                                 friendlyUnits, directions);
+                        //Compute the danger of moving to a given tile.
                         int[] resultingHealth = new int[4];
                         for (int i = 0; i < friendlyUnits.length; i++) {
                             if (friendlyUnits[i].getHealth() == 0) {
@@ -735,6 +766,8 @@ public class PlayerAI {
                             int friendlyNum = 0;
                             int friendlyHealth = 0;
                             int friendlyDamage = 0;
+                            //Compute the health and firepower of enemies
+                            //aiming at that tile.
                             for (EnemyUnit e : enemyUnits) {
                                 if (e.getHealth() > 0
                                         && world.canShooterShootTarget(
@@ -748,6 +781,8 @@ public class PlayerAI {
                                     enemyHealth += e.getHealth();
                                 }
                             }
+                            //Compute the health and firepower of friends
+                            //in the vicinity of that tile.
                             for (FriendlyUnit friendlyUnit : friendlyUnits) {
                                 if (friendlyUnit.getHealth() > 0
                                         && world.getPathLength(
@@ -759,6 +794,7 @@ public class PlayerAI {
                                             .getCurrentWeapon().getDamage();
                                 }
                             }
+                            //Compute the fear of a tile as 
                             resultingHealth[i] = Math.max(0, enemyHealth
                                     + enemyNum * enemyDamage - friendlyHealth
                                     - friendlyNum * friendlyDamage) + 1;
@@ -767,19 +803,19 @@ public class PlayerAI {
                         curGoodness += goodness[0][d0]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed0 ? 0.5 : 1)
-                                * resultingHealth[0];
+                                / resultingHealth[0];
                         curGoodness += goodness[1][d1]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed1 ? 0.5 : 1)
-                                * resultingHealth[1];
+                                / resultingHealth[1];
                         curGoodness += goodness[2][d2]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed2 ? 0.5 : 1)
-                                * resultingHealth[2];
+                                / resultingHealth[2];
                         curGoodness += goodness[3][d3]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed3 ? 0.5 : 1)
-                                * resultingHealth[3];
+                                / resultingHealth[3];
                         curGoodness *= Math.pow(1d * currentUnity
                                 / resultingUnity, 1d / minDistance);
                         if (curGoodness > maximumGoodness) {
