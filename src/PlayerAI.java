@@ -525,21 +525,24 @@ public class PlayerAI {
                         goodness[i][j] = val;
                     }
                 }
-                for (EnemyUnit e : enemyUnits) {
-                    if (e.getHealth() == 0) {
-                        continue;
-                    }
-                    double val =
-                        this.fudgeFactor * this.weaponCoefficient(
-                                friendlyUnits[i].getCurrentWeapon()) -
-                        this.modifiedWeaponCoefficient(e.getCurrentWeapon(),
-                                world, e.getPosition());
-                    int len = world.getPathLength(newStart,
-                            e.getPosition());
-                    val /= len + 1;
-                    val *= 5;
-                    if (val >= goodness[i][j]) {
-                        goodness[i][j] = val;
+
+                if (!(friendlyUnits[i].getShieldedTurnsRemaining() > 0)) {
+                    for (EnemyUnit e : enemyUnits) {
+                        if (e.getHealth() == 0) {
+                            continue;
+                        }
+                        double val =
+                            this.fudgeFactor * this.weaponCoefficient(
+                                    friendlyUnits[i].getCurrentWeapon()) -
+                            this.modifiedWeaponCoefficient(e.getCurrentWeapon(),
+                                    world, e.getPosition());
+                        int len = world.getPathLength(newStart,
+                                e.getPosition());
+                        val /= len + 1;
+                        val *= 5;
+                        if (val >= goodness[i][j]) {
+                            goodness[i][j] = val;
+                        }
                     }
                 }
                 int ourMainframes = 0;
@@ -665,45 +668,45 @@ public class PlayerAI {
                         directions[3] = Direction.values()[d3];
                         int resultingUnity = this.unityFactor(world,
                                 friendlyUnits, directions);
-	                    int[] resultingHealth = {1, 1, 1, 1};
-	                    for (int i = 0; i < friendlyUnits.length; i++) {
-		                    if (friendlyUnits[i].getHealth() == 0) {
-			                    continue;
-		                    }
-		                    int enemyNum = 0;
-		                    int damage = 0;
-		                    for (EnemyUnit e : enemyUnits) {
-			                    if (e.getHealth() > 0
-					                    && world.canShooterShootTarget(
-					                    e.getPosition(),
-					                    directions[i].movePoint(
-					                    		friendlyUnits[i].getPosition()),
-					                    e.getCurrentWeapon().getRange())) {
-				                    damage += e.getCurrentWeapon().getDamage();
-				                    enemyNum++;
-			                    }
-		                    }
-		                    resultingHealth[i] *= Math.max(0,
-				                    friendlyUnits[i].getHealth()
-						                    - enemyNum * damage) + 1;
-	                    }
+                        int[] resultingHealth = {1, 1, 1, 1};
+                        for (int i = 0; i < friendlyUnits.length; i++) {
+                            if (friendlyUnits[i].getHealth() == 0) {
+                                continue;
+                            }
+                            int enemyNum = 0;
+                            int damage = 0;
+                            for (EnemyUnit e : enemyUnits) {
+                                if (e.getHealth() > 0
+                                        && world.canShooterShootTarget(
+                                        e.getPosition(),
+                                        directions[i].movePoint(
+                                                friendlyUnits[i].getPosition()),
+                                        e.getCurrentWeapon().getRange())) {
+                                    damage += e.getCurrentWeapon().getDamage();
+                                    enemyNum++;
+                                }
+                            }
+                            resultingHealth[i] *= Math.max(0,
+                                    friendlyUnits[i].getHealth()
+                                            - enemyNum * damage) + 1;
+                        }
                         double curGoodness = 0;
                         curGoodness += goodness[0][d0]
-		                        * (Direction.values()[d0] == Direction.NOWHERE
-		                        && lastMoveFailed0 ? 0.5 : 1)
-		                        * resultingHealth[0];
+                                * (Direction.values()[d0] == Direction.NOWHERE
+                                && lastMoveFailed0 ? 0.5 : 1)
+                                * resultingHealth[0];
                         curGoodness += goodness[1][d1]
-		                        * (Direction.values()[d0] == Direction.NOWHERE
-		                        && lastMoveFailed1 ? 0.5 : 1)
-		                        * resultingHealth[1];
+                                * (Direction.values()[d0] == Direction.NOWHERE
+                                && lastMoveFailed1 ? 0.5 : 1)
+                                * resultingHealth[1];
                         curGoodness += goodness[2][d2]
-		                        * (Direction.values()[d0] == Direction.NOWHERE
-		                        && lastMoveFailed2 ? 0.5 : 1)
-		                        * resultingHealth[2];
+                                * (Direction.values()[d0] == Direction.NOWHERE
+                                && lastMoveFailed2 ? 0.5 : 1)
+                                * resultingHealth[2];
                         curGoodness += goodness[3][d3]
-		                        * (Direction.values()[d0] == Direction.NOWHERE
-		                        && lastMoveFailed3 ? 0.5 : 1)
-		                        * resultingHealth[3];
+                                * (Direction.values()[d0] == Direction.NOWHERE
+                                && lastMoveFailed3 ? 0.5 : 1)
+                                * resultingHealth[3];
                         curGoodness *= Math.pow(1d * currentUnity
                                 / resultingUnity, 1d / minDistance);
                         if (curGoodness > maximumGoodness) {
