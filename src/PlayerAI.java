@@ -369,10 +369,6 @@ public class PlayerAI {
                         enemyNum++;
                     }
                 }
-                if (friendlyUnits[i].getShieldedTurnsRemaining()>0){
-	            for (int k = 0; k < 100; k++) {
-		            System.out.println(friendlyUnits[i].getShieldedTurnsRemaining());
-	            }}
                 if (totalDamage * enemyNum >= friendlyUnits[i].getHealth()
 		                && friendlyUnits[i].getNumShields() > 0
 		                && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
