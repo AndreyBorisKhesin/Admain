@@ -49,6 +49,15 @@ public class PlayerAI {
     final double courageCoefficient = 1.5;
 
     /**
+     * Default constructor for PlayerAI class that initialized the variables
+     * stats set to false and last moves to an empty array.
+     */
+    public PlayerAI() {
+        statsSet = false;
+        lastMoves = new Direction[4];
+    }
+
+    /**
      * The totalDistance method evaluates how separated the friendly units are
      * by calculating the sum of their pairwise separations.
      * @param world The state of the world, containing a pathfinding method.
@@ -594,7 +603,7 @@ public class PlayerAI {
                     }
                 }
                 for (ControlPoint cp : world.getControlPoints()) {
-                    double val = 25;
+                    double val = 50;
                     int len = world.getPathLength(newStart,
                             cp.getPosition());
                     if (len != 0) {
@@ -657,28 +666,34 @@ public class PlayerAI {
             }
             boolean lastMoveFailed0 = (
                     !friendlyUnits[0].didLastActionSucceed() &&
-                    friendlyUnits[0].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY);
-            if (this.lastMoves[0] == Direction.values()[d0] && lastMoveFailed0) {
+                    friendlyUnits[0].getLastMoveResult()
+                            == MoveResult.BLOCKED_BY_ENEMY);
+            if (this.lastMoves[0] == Direction.values()[d0]
+                    && lastMoveFailed0) {
                 continue;
             }
             for (int d1 = 0; d1 < Direction.values().length; d1++) {
                 Point new1 = Direction.values()[d1].movePoint(
                         friendlyUnits[1].getPosition());
                 if (world.getTile(new1) == TileType.WALL
-                        || new1.equals(new0)) {
+                        || (friendlyUnits[1].getHealth() > 0
+                        && new1.equals(new0))) {
                     continue;
                 }
                 boolean lastMoveFailed1 = (
                         !friendlyUnits[1].didLastActionSucceed() &&
-                        friendlyUnits[1].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY);
-                if (this.lastMoves[1] == Direction.values()[d1] && lastMoveFailed1) {
+                        friendlyUnits[1].getLastMoveResult()
+                                == MoveResult.BLOCKED_BY_ENEMY);
+                if (this.lastMoves[1] == Direction.values()[d1]
+                        && lastMoveFailed1) {
                     continue;
                 }
                 for (int d2 = 0; d2 < Direction.values().length; d2++) {
                     Point new2 = Direction.values()[d2].movePoint(
                             friendlyUnits[2].getPosition());
                     if (world.getTile(new2) == TileType.WALL
-                            || new2.equals(new0) || new2.equals(new1)) {
+                            || (friendlyUnits[2].getHealth() > 0
+                            && (new2.equals(new0) || new2.equals(new1)))) {
                         continue;
                     }
                     boolean lastMoveFailed2 = (
@@ -691,8 +706,9 @@ public class PlayerAI {
                         Point new3 = Direction.values()[d3].movePoint(
                                 friendlyUnits[3].getPosition());
                         if (world.getTile(new3) == TileType.WALL
-                                || new3.equals(new0) || new3.equals(new1)
-                                || new3.equals(new2)) {
+                                || (friendlyUnits[3].getHealth() > 0
+                                && (new3.equals(new0) || new3.equals(new1)
+                                || new3.equals(new2)))) {
                             continue;
                         }
                         boolean lastMoveFailed3 = (
@@ -708,13 +724,17 @@ public class PlayerAI {
                         directions[3] = Direction.values()[d3];
                         int resultingUnity = this.unityFactor(world,
                                 friendlyUnits, directions);
-                        int[] resultingHealth = {1, 1, 1, 1};
+                        int[] resultingHealth = new int[4];
                         for (int i = 0; i < friendlyUnits.length; i++) {
                             if (friendlyUnits[i].getHealth() == 0) {
                                 continue;
                             }
                             int enemyNum = 0;
-                            int damage = 0;
+                            int enemyHealth = 0;
+                            int enemyDamage = 0;
+                            int friendlyNum = 0;
+                            int friendlyHealth = 0;
+                            int friendlyDamage = 0;
                             for (EnemyUnit e : enemyUnits) {
                                 if (e.getHealth() > 0
                                         && world.canShooterShootTarget(
@@ -722,13 +742,26 @@ public class PlayerAI {
                                         directions[i].movePoint(
                                                 friendlyUnits[i].getPosition()),
                                         e.getCurrentWeapon().getRange())) {
-                                    damage += e.getCurrentWeapon().getDamage();
+                                    enemyDamage += e.getCurrentWeapon()
+                                            .getDamage();
                                     enemyNum++;
+                                    enemyHealth += e.getHealth();
                                 }
                             }
-                            resultingHealth[i] *= Math.max(0,
-                                    friendlyUnits[i].getHealth()
-                                            - enemyNum * damage) + 1;
+                            for (FriendlyUnit friendlyUnit : friendlyUnits) {
+                                if (friendlyUnit.getHealth() > 0
+                                        && world.getPathLength(
+                                                friendlyUnits[i].getPosition(),
+                                        friendlyUnit.getPosition()) <= 2) {
+                                    friendlyNum++;
+                                    friendlyHealth += friendlyUnit.getHealth();
+                                    friendlyDamage += friendlyUnit
+                                            .getCurrentWeapon().getDamage();
+                                }
+                            }
+                            resultingHealth[i] = Math.max(0, enemyHealth
+                                    + enemyNum * enemyDamage - friendlyHealth
+                                    - friendlyNum * friendlyDamage) + 1;
                         }
                         double curGoodness = 0;
                         curGoodness += goodness[0][d0]
