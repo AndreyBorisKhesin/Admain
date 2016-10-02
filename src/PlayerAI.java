@@ -376,13 +376,77 @@ public class PlayerAI {
             }
             // for each person, for each direction, take maximum of each possible target value.
             // Memoize the goodness for this person direction thing.
-            //
-            //
             double[][] goodness =
                 new double[friendlyUnits.length][Direction.values().length];
             for (int i = 0; i < friendlyUnits.length; i++) {
                 for (int j = 0; j < Direction.values().length; j++) {
                     goodness[i][j] = Double.MIN_VALUE;
+                    for (Pickup p: world.getPickups()) {
+                        double val = 1.0;
+                        switch(p) {
+                            case PickupType.SHIELD:
+                                val *= 3;
+                                int playnum = 0;
+                                for (FriendlyUnit fu : friendlyUnits) {
+                                    if (fu.getHealth() > 0) {
+                                        playnum++;
+                                    }
+                                }
+                                if (playnum != 0) {
+                                    val /= playnum;
+                                }
+                            case PickupType.REPAIR_KIT:
+                                val *= 500.0 / friendlyUnits[i].getHealth();
+                                break;
+                            case PickupType.WEAPON_LASER_RIFLE:
+                            case PickupType.WEAPON_MINI_BLASTER:
+                            case PickupType.WEAPON_SCATTER_GUN:
+                            case PickupType.WEAPON_RAIL_GUN:
+                                WeaponType otherGun = this.pickToGun(p.getPickupType());
+                                WeaponType myGun = friendlyUnits[i].getCurrentWeapon();
+                                val *= (
+                                    Math.min(
+                                        otherGun.getRange(),
+                                        this.maximumEffectiveRange) *
+                                    otherGun.getDamage() -
+                                    Math.min(
+                                        myGun.getRange(),
+                                        this.maximumEffectiveRange) *
+                                    myGun.getDamage() -
+                                    );
+                                break;
+                        }
+                        ArrayList<Point> path = path(world, enemyUnits,
+                                friendlyUnits[i].getPosition(), p.getPosition(), friendlyUnits[i]);
+//                          int len = world.getPathLength(f.getPosition(),
+//                                  p.getPosition());
+                        if (path.size() != 1) {
+                            val /= path.size();
+                            if (val > max) {
+                                max = val;
+                                target = p.getPosition();
+                            }
+                        }
+                    }
+                    for (EnemyUnit e: enemyUnits) {
+                        if (e.getHealth() == 0) {
+                            continue;
+                        }
+                        double val =
+                            this.fudgeFactor*this.pickupScore(this.gunToPick(
+                                    friendlyUnits[i].getCurrentWeapon())) -
+                            this.pickupScore(this.gunToPick(e.getCurrentWeapon()));
+                        ArrayList<Point> path = path(world, enemyUnits,
+                                friendlyUnits[i].getPosition(), e.getPosition(), friendlyUnits[i]);
+    //                        int len = world.getPathLength(f.getPosition(),
+    //                                p.getPosition());
+                        val /= path.size();
+                        val *= 5;
+                        if (val > max) {
+                            max = val;
+                            target = e.getPosition();
+                        }
+                    }
                 }
             }
             for (int i = 0; i < 4; i++) {
