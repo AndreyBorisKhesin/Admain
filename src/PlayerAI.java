@@ -618,6 +618,10 @@ public class PlayerAI {
                     // a mainframe is a great advantage.
                     if (cp.isMainframe()) {
                         val *= 3;
+                        // If we're shielded, run for a mainframe.
+                        if (friendlyUnits[i].getShieldedTurnsRemaining() > 0) {
+                            val *= 5;
+                        }
                         val /= (ourMainframes + 0.5);
                     }
                     // If our enemies are down to their last mainframe, we want
@@ -754,76 +758,23 @@ public class PlayerAI {
                         directions[3] = Direction.values()[d3];
                         int resultingUnity = this.unityFactor(world,
                                 friendlyUnits, directions);
-                        // Compute the danger of moving to a given tile.
-                        int[] fearFactor = new int[4];
-                        for (int i = 0; i < friendlyUnits.length; i++) {
-                            if (friendlyUnits[i].getHealth() == 0) {
-                                continue;
-                            }
-                            int enemyNum = 0;
-                            int enemyHealth = 0;
-                            int enemyDamage = 0;
-                            int friendlyNum = 0;
-                            int friendlyHealth = 0;
-                            int friendlyDamage = 0;
-                            // Compute the health and firepower of enemies
-                            // aiming at that tile.
-                            for (EnemyUnit e : enemyUnits) {
-                                if (e.getHealth() > 0
-                                        && world.canShooterShootTarget(
-                                        e.getPosition(),
-                                        directions[i].movePoint(
-                                                friendlyUnits[i].getPosition()),
-                                        e.getCurrentWeapon().getRange())) {
-                                    enemyDamage += e.getCurrentWeapon()
-                                            .getDamage();
-                                    enemyNum++;
-                                    enemyHealth += e.getHealth();
-                                }
-                            }
-                            // Compute the health and firepower of friends
-                            // in the vicinity of that tile.
-                            for (FriendlyUnit friendlyUnit : friendlyUnits) {
-                                if (friendlyUnit.getHealth() > 0
-                                        && world.getPathLength(
-                                                friendlyUnits[i].getPosition(),
-                                        friendlyUnit.getPosition()) <= 2) {
-                                    friendlyNum++;
-                                    friendlyHealth += friendlyUnit.getHealth();
-                                    friendlyDamage += friendlyUnit
-                                            .getCurrentWeapon().getDamage();
-                                }
-                            }
-                            // Compute the fear of a tile as the difference
-                            // between power projected by the enemy and power
-                            // projected by our team.
-                            fearFactor[i] = Math.max(0, enemyHealth
-                                    + enemyNum * enemyDamage - 2
-		                            * (friendlyHealth + friendlyNum
-		                            * friendlyDamage) - 10 * ourMainframes) + 1;
-                        }
                         // Compute the total action value due to these moves.
                         // It is the sum of the action values of the individual
-                        // moves, with consideration for the fear factor and
-                        // with consideration for the fact that idling is
+                        // moves, with consideration for the fact that idling is
                         // discouraged.
                         double curActionValue = 0;
                         curActionValue += actionValue[0][d0]
                                 * (Direction.values()[d0] == Direction.NOWHERE
-                                && lastMoveFailed0 ? 0.5 : 1)
-                                / fearFactor[0];
+                                && lastMoveFailed0 ? 0.5 : 1);
                         curActionValue += actionValue[1][d1]
                                 * (Direction.values()[d0] == Direction.NOWHERE
-                                && lastMoveFailed1 ? 0.5 : 1)
-                                / fearFactor[1];
+                                && lastMoveFailed1 ? 0.5 : 1);
                         curActionValue += actionValue[2][d2]
                                 * (Direction.values()[d0] == Direction.NOWHERE
-                                && lastMoveFailed2 ? 0.5 : 1)
-                                / fearFactor[2];
+                                && lastMoveFailed2 ? 0.5 : 1);
                         curActionValue += actionValue[3][d3]
                                 * (Direction.values()[d0] == Direction.NOWHERE
-                                && lastMoveFailed3 ? 0.5 : 1)
-                                / fearFactor[3];
+                                && lastMoveFailed3 ? 0.5 : 1);
                         curActionValue *= Math.pow(1d * currentUnity
                                 / resultingUnity, 1d / minDistance);
                         // Maximize the total action value.
