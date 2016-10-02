@@ -17,6 +17,7 @@ public class PlayerAI {
     int worldHeight;
     int worldWidth;
     int maximumEffectiveRange;
+	Direction[][][] possibleDirections;
     // int averageEffectiveRange;
     //
 
@@ -53,7 +54,7 @@ public class PlayerAI {
                         !visited[considered.getX()][considered.getY()]) {
 	                double nodeWeight = 1;
 	                for (EnemyUnit enemyUnit : enemyUnits) {
-		                nodeWeight += (2 * enemyUnit.getHealth()
+		                nodeWeight *= (2 * enemyUnit.getHealth()
 				                / friendlyUnit.getCurrentWeapon().getRange()
 				                / friendlyUnit.getCurrentWeapon().getDamage()
 				                - friendlyUnit.getHealth()
@@ -66,7 +67,7 @@ public class PlayerAI {
 	                }
                     double newDistance =
                             distances[current.getX()][current.getY()] +
-		                            nodeWeight;
+		                            Math.max(1, nodeWeight + 1);
                     //node weight of considered goes instead of the 1 above
                     if (distances[considered.getX()][considered.getY()] >
                             newDistance) {
