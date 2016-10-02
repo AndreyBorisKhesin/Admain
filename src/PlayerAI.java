@@ -755,7 +755,7 @@ public class PlayerAI {
                         int resultingUnity = this.unityFactor(world,
                                 friendlyUnits, directions);
                         // Compute the danger of moving to a given tile.
-                        int[] resultingHealth = new int[4];
+                        int[] fearFactor = new int[4];
                         for (int i = 0; i < friendlyUnits.length; i++) {
                             if (friendlyUnits[i].getHealth() == 0) {
                                 continue;
@@ -797,7 +797,7 @@ public class PlayerAI {
                             // Compute the fear of a tile as the difference
                             // between power projected by the enemy and power
                             // projected by our team.
-                            resultingHealth[i] = Math.max(0, enemyHealth
+                            fearFactor[i] = Math.max(0, enemyHealth
                                     + enemyNum * enemyDamage - friendlyHealth
                                     - friendlyNum * friendlyDamage - 10
 		                            * ourMainframes) + 1;
@@ -806,19 +806,19 @@ public class PlayerAI {
                         curActionValue += actionValue[0][d0]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed0 ? 0.5 : 1)
-                                / resultingHealth[0];
+                                / fearFactor[0];
                         curActionValue += actionValue[1][d1]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed1 ? 0.5 : 1)
-                                / resultingHealth[1];
+                                / fearFactor[1];
                         curActionValue += actionValue[2][d2]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed2 ? 0.5 : 1)
-                                / resultingHealth[2];
+                                / fearFactor[2];
                         curActionValue += actionValue[3][d3]
                                 * (Direction.values()[d0] == Direction.NOWHERE
                                 && lastMoveFailed3 ? 0.5 : 1)
-                                / resultingHealth[3];
+                                / fearFactor[3];
                         curActionValue *= Math.pow(1d * currentUnity
                                 / resultingUnity, 1d / minDistance);
                         if (curActionValue > maximumGoodness) {
