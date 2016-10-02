@@ -181,6 +181,9 @@ public class PlayerAI {
     }
 
     private WeaponType pickToGun (Pickup p) {
+        if (p == null) {
+            return null;
+        }
         PickupType pt = p.getPickupType();
         switch(pt) {
             case WEAPON_LASER_RIFLE: return WeaponType.LASER_RIFLE;
@@ -213,28 +216,6 @@ public class PlayerAI {
                                            Point point) {
 	    return Math.max(weaponCoefficient(w),
 			    weaponCoefficient(pickToGun(world.getPickupAtPosition(point))));
-    }
-
-    private int pickupScore (PickupType p) {
-        if (p == PickupType.REPAIR_KIT) {
-            return 40;
-        }
-        if (p == PickupType.SHIELD) {
-            return 0;
-        }
-        if (p == PickupType.WEAPON_LASER_RIFLE) {
-            return 8 * Math.min(4, this.maximumEffectiveRange);
-        }
-        if (p == PickupType.WEAPON_MINI_BLASTER) {
-            return 4 * Math.min(5, this.maximumEffectiveRange);
-        }
-        if (p == PickupType.WEAPON_SCATTER_GUN) {
-            return 25 * Math.min(2, this.maximumEffectiveRange);
-        }
-        if (p == PickupType.WEAPON_RAIL_GUN) {
-            return 6 * Math.min(10, this.maximumEffectiveRange);
-        }
-        return -128;
     }
 
     private int unityFactor(World world, FriendlyUnit[] friendlyUnits) {
@@ -334,6 +315,78 @@ public class PlayerAI {
 			            continue;
 		            }
 	            }
+            }
+            EnemyUnit[] targets = new EnemyUnit[4];
+            int maximumDamage = 0;
+            // TODO: Add conditions for a Player not firing at someone due to already having activated a shield.
+            // TODO: Add shielding conditions.
+            // TODO: Consider the 1 guy keeping two enemies alive situation.
+            for (int t0 = 0; t0 < 4; t0++) {
+                if (enemyUnits[t0].getHealth() == 0) {
+                    continue;
+                }
+                for (int t1 = 0; t1 < 4; t1++) {
+                    if (enemyUnits[t1].getHealth() == 0) {
+                        continue;
+                    }
+                    for (int t2 = 0; t2 < 4; t2++) {
+                        if (enemyUnits[t2].getHealth() == 0) {
+                            continue;
+                        }
+                        for (int t3 = 0; t3 < 4; t3++) {
+                            if (enemyUnits[t3].getHealth() == 0) {
+                                continue;
+                            }
+                            int[] damages = new int[4];
+                            byte[] shooters = new byte[4];
+                            if (friendlyUnits[0].checkShotAgainstEnemy(enemyUnits[t0]) == ShotResult.CAN_HIT_ENEMY) {
+                                damages[t0] += friendlyUnits[0].getCurrentWeapon().getDamage();
+                                shooters[t0]++;
+                            }
+                            if (friendlyUnits[1].checkShotAgainstEnemy(enemyUnits[t1]) == ShotResult.CAN_HIT_ENEMY) {
+                                damages[t1] += friendlyUnits[1].getCurrentWeapon().getDamage();
+                                shooters[t1]++;
+                            }
+                            if (friendlyUnits[2].checkShotAgainstEnemy(enemyUnits[t2]) == ShotResult.CAN_HIT_ENEMY) {
+                                damages[t2] += friendlyUnits[2].getCurrentWeapon().getDamage();
+                                shooters[t2]++;
+                            }
+                            if (friendlyUnits[3].checkShotAgainstEnemy(enemyUnits[t3]) == ShotResult.CAN_HIT_ENEMY) {
+                                damages[t3] += friendlyUnits[3].getCurrentWeapon().getDamage();
+                                shooters[t3]++;
+                            }
+                            int totalDamage = (
+                                Math.min(damages[0]*shooters[0], enemyUnits[0].getHealth()) +
+                                Math.min(damages[1]*shooters[1], enemyUnits[1].getHealth()) +
+                                Math.min(damages[2]*shooters[2], enemyUnits[2].getHealth()) +
+                                Math.min(damages[3]*shooters[3], enemyUnits[3].getHealth()));
+                            if (totalDamage > maximumDamage) {
+                                targets[0] = enemyUnits[t0];
+                                targets[1] = enemyUnits[t1];
+                                targets[2] = enemyUnits[t2];
+                                targets[3] = enemyUnits[t3];
+                                maximumDamage = totalDamage;
+                            }
+                        }
+                    }
+                }
+            }
+            for (int i = 0; i < 4; i++) {
+                if (moved[i]) {
+                    continue;
+                }
+                if (targets[i] != null) {
+                    if (friendlyUnits[i].checkShotAgainstEnemy(targets[i]) ==
+                            ShotResult.CAN_HIT_ENEMY) {
+                        friendlyUnits[i].shootAt(targets[i]);
+                        moved[i] = true;
+                    }
+                }
+            }
+            for (int i = 0; i < 4; i++) {
+                if (moved[i]) {
+                    continue;
+                }
 	            EnemyUnit myTarget = null;
 	            //int closest = 20;
 	            int maxDamage = Integer.MIN_VALUE;
@@ -375,6 +428,7 @@ public class PlayerAI {
 			            && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
 		            friendlyUnits[i].shootAt(myTarget);
 		            moved[i] = true;
+                    continue;
 	            }
             }
             // for each person, for each direction,
@@ -475,7 +529,7 @@ public class PlayerAI {
                         int len = world.getPathLength(newStart,
                                 cp.getPosition());
                         if (len != 0) {
-                            val /= len + 1;
+                            val /= len;
                         }
                         if (enemyNumber(friendlyUnits[i].getTeam(),
 		                        cp.getControllingTeam()) == 1) {
