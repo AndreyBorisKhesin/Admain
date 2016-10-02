@@ -423,7 +423,8 @@ public class PlayerAI {
                         closest = supNormFast(friendlyUnits[i].getPosition(), e.getPosition());
                     }
                 }
-                if (myTarget != null) {
+                if (myTarget != null
+		                && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
                     friendlyUnits[i].shootAt(myTarget);
                     continue;
                 }
