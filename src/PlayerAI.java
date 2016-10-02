@@ -107,7 +107,7 @@ public class PlayerAI {
                 total += world.getPathLength(p1, p2);
             }
         }
-        return total/2;
+        return total / 2;
     }
 
     private int enemyNumber(Team ours, Team other) {
@@ -274,7 +274,8 @@ public class PlayerAI {
     }
 
     private int weaponCoefficient (WeaponType w) {
-        return Math.min(w.getRange(), this.maximumEffectiveRange) * w.getDamage();
+        return Math.min(w.getRange(), this.maximumEffectiveRange)
+		        * w.getDamage();
     }
 
     private int pickupScore (PickupType p) {
@@ -307,16 +308,18 @@ public class PlayerAI {
         return this.unityFactor(world, friendlyUnits, directions);
     }
 
-    private int unityFactor(World world, FriendlyUnit[] friendlyUnits, Direction[] directions) {
+    private int unityFactor(World world, FriendlyUnit[] friendlyUnits,
+                            Direction[] directions) {
         Point[] points = new Point[4];
-        int i = 0;
-        for (FriendlyUnit f : friendlyUnits) {
-            if (f.getHealth() != 0) {
-                points[i] = directions[i].movePoint(f.getPosition());
-                i++;
-            }
-        }
-        switch(i) {
+        int alive = 0;
+	    for (int i = 0; i < 4; i++) {
+		    if (friendlyUnits[i].getHealth() != 0) {
+			    points[alive] = directions[i].movePoint(
+			    		friendlyUnits[i].getPosition());
+			    alive++;
+		    }
+	    }
+        switch(alive) {
             case 0:
             case 1: return 1;
             case 2: return this.totalDistance(
@@ -354,7 +357,7 @@ public class PlayerAI {
         if (!this.statsSet) {
             this.setStats(world, enemyUnits, friendlyUnits);
         }
-        if (this.numberOfControlPoints > -1) {
+        if (this.numberOfControlPoints > -1) {// TODO Ask Dima about this
             boolean[] moved = new boolean[4];
             // Determine if I should shield.
             for (int i = 0; i < 4; i++) {
@@ -374,16 +377,57 @@ public class PlayerAI {
                         && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
                     friendlyUnits[i].activateShield();
                     moved[i] = true;
+	                continue;
                 }
+	            Pickup pickupHere = world.getPickupAtPosition(
+			            friendlyUnits[i].getPosition());
+	            if (pickupHere != null) {
+		            if (!this.isGun(pickupHere) || (
+				            this.weaponCoefficient(
+						            friendlyUnits[i].getCurrentWeapon()) <
+						            this.weaponCoefficient(
+								            this.pickToGun(pickupHere)))) {
+			            friendlyUnits[i].pickupItemAtPosition();
+			            moved[i] = true;
+			            continue;
+		            }
+	            }
+	            EnemyUnit myTarget = null;
+	            int closest = 20;
+	            for (Direction d: Direction.values()) {
+		            if (d == Direction.NOWHERE) {
+			            continue;
+		            }
+		            EnemyUnit e = world.getClosestShootableEnemyInDirection(
+				            friendlyUnits[i],
+				            d);
+		            if (e == null || e.getShieldedTurnsRemaining() > 0) {
+			            continue;
+		            }
+		            if (supNormFast(friendlyUnits[i].getPosition(),
+				            e.getPosition())
+				            < closest) {
+			            myTarget = e;
+			            closest = supNormFast(friendlyUnits[i].getPosition(),
+					            e.getPosition());
+		            }
+	            }
+	            if (myTarget != null
+			            && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
+		            friendlyUnits[i].shootAt(myTarget);
+		            moved[i] = true;
+	            }
             }
-            // for each person, for each direction, take maximum of each possible target value.
+            // for each person, for each direction,
+	        // take maximum of each possible target value.
             // Memoize the goodness for this person direction thing.
             double[][] goodness =
                 new double[friendlyUnits.length][Direction.values().length];
             for (int i = 0; i < friendlyUnits.length; i++) {
                 for (int j = 0; j < Direction.values().length; j++) {
                     goodness[i][j] = Double.MIN_VALUE;
-                    Point newStart = Direction.values()[j].movePoint(friendlyUnits[i].getPosition());
+                    Point newStart = Direction.values()[j].movePoint(
+                    		friendlyUnits[i].getPosition());
                     if (world.getTile(newStart) == TileType.WALL) {
                         continue;
                     }
@@ -405,7 +449,8 @@ public class PlayerAI {
                                 if (friendlyUnits[i].getHealth() == 0) {
                                     val = Double.MIN_VALUE;
                                 } else {
-                                    val *= 1000.0 / friendlyUnits[i].getHealth();
+                                    val *= 1000.0
+		                                    / friendlyUnits[i].getHealth();
                                 }
                                 break;
                             case WEAPON_LASER_RIFLE:
@@ -413,8 +458,10 @@ public class PlayerAI {
                             case WEAPON_SCATTER_GUN:
                             case WEAPON_RAIL_GUN:
                                 WeaponType otherGun = this.pickToGun(p);
-                                WeaponType myGun = friendlyUnits[i].getCurrentWeapon();
-                                val *= this.weaponCoefficient(otherGun) - this.weaponCoefficient(myGun);
+                                WeaponType myGun =
+		                                friendlyUnits[i].getCurrentWeapon();
+                                val *= this.weaponCoefficient(otherGun)
+		                                - this.weaponCoefficient(myGun);
                                 break;
                         }
                         int len = world.getPathLength(
@@ -432,7 +479,8 @@ public class PlayerAI {
                             continue;
                         }
                         double val =
-                            this.fudgeFactor * this.weaponCoefficient(friendlyUnits[i].getCurrentWeapon()) -
+                            this.fudgeFactor * this.weaponCoefficient(
+                            		friendlyUnits[i].getCurrentWeapon()) -
                             this.weaponCoefficient(e.getCurrentWeapon());
                         int len = world.getPathLength(newStart,
                                 e.getPosition());
@@ -485,42 +533,55 @@ public class PlayerAI {
             int total = 0;
             int currentUnity = this.unityFactor(world, friendlyUnits);
             for (int d0 = 0; d0 < Direction.values().length; d0++) {
-                Point new0 = Direction.values()[d0].movePoint(friendlyUnits[0].getPosition());
+                Point new0 = Direction.values()[d0].movePoint(
+                		friendlyUnits[0].getPosition());
                 if (world.getTile(new0) == TileType.WALL) {
                     continue;
                 }
                 for (int d1 = 0; d1 < Direction.values().length; d1++) {
-                    Point new1 = Direction.values()[d1].movePoint(friendlyUnits[1].getPosition());
-                    if (world.getTile(new1) == TileType.WALL) {
+                    Point new1 = Direction.values()[d1].movePoint(
+                    		friendlyUnits[1].getPosition());
+                    if (world.getTile(new1) == TileType.WALL
+		                    || new1.equals(new0)) {
                         continue;
                     }
                     for (int d2 = 0; d2 < Direction.values().length; d2++) {
-                        Point new2 = Direction.values()[d2].movePoint(friendlyUnits[2].getPosition());
-                        if (world.getTile(new2) == TileType.WALL) {
+                        Point new2 = Direction.values()[d2].movePoint(
+                        		friendlyUnits[2].getPosition());
+                        if (world.getTile(new2) == TileType.WALL
+		                        || new2.equals(new0) || new2.equals(new1)) {
                             continue;
                         }
-                        for (int d3 = 0; d3 < Direction.values().length; d3++) {
-                            Point new3 = Direction.values()[d3].movePoint(friendlyUnits[3].getPosition());
-                            if (world.getTile(new3) == TileType.WALL) {
+                        l : for (int d3 = 0; d3 < Direction.values().length;
+                                 d3++) {
+                            Point new3 = Direction.values()[d3].movePoint(
+                            		friendlyUnits[3].getPosition());
+                            if (world.getTile(new3) == TileType.WALL
+		                            || new3.equals(new0) || new3.equals(new1)
+		                            || new3.equals(new2)) {
                                 continue;
                             }
-                            // TODO: Add check for collision.
-                            // TODO: Add clumping mechanism.
                             Direction[] directions = new Direction[4];
                             directions[0] = Direction.values()[d0];
                             directions[1] = Direction.values()[d1];
                             directions[2] = Direction.values()[d2];
                             directions[3] = Direction.values()[d3];
-                            int resultingUnity = this.unityFactor(world, friendlyUnits, directions);
+	                        for (int i = 0; i < 4; i++) {
+		                        if (moved[i] &&
+				                        directions[i] != Direction.NOWHERE) {
+			                        continue l;
+		                        }
+	                        }
+                            int resultingUnity = this.unityFactor(world,
+		                            friendlyUnits, directions);
                             double curGoodness = 0;
                             curGoodness += goodness[0][d0];
                             curGoodness += goodness[1][d1];
                             curGoodness += goodness[2][d2];
                             curGoodness += goodness[3][d3];
-                            //curGoodness *= currentUnity + 30;
-                            if (resultingUnity != 0) {
-                            //    curGoodness /= resultingUnity + 30;
-                            }
+                            curGoodness *= Math.pow(currentUnity
+		                            / resultingUnity, 0.5);//TODO fiddle with
+	                        // this more
                             if (curGoodness > maximumGoodness) {
                                 maximumGoodness = curGoodness;
                                 optimalDirections[0] = d0;
@@ -534,47 +595,10 @@ public class PlayerAI {
                 }
             }
             for (int i = 0; i < 4; i++) {
-                if (moved[i]) {
-                    continue;
-                }
-                Pickup pickupHere = world.getPickupAtPosition(
-                		friendlyUnits[i].getPosition());
-                if (pickupHere != null) {
-                    if (!this.isGun(pickupHere) || (
-                                this.weaponCoefficient(
-                                		friendlyUnits[i].getCurrentWeapon()) <
-                                this.weaponCoefficient(
-                                		this.pickToGun(pickupHere)))) {
-                        friendlyUnits[i].pickupItemAtPosition();
-                        continue;
-                    }
-                }
-                EnemyUnit myTarget = null;
-                int closest = 20;
-                for (Direction d: Direction.values()) {
-                    if (d == Direction.NOWHERE) {
-                        continue;
-                    }
-                    EnemyUnit e = world.getClosestShootableEnemyInDirection(
-                            friendlyUnits[i],
-                            d);
-                    if (e == null || e.getShieldedTurnsRemaining() > 0) {
-                        continue;
-                    }
-                    if (supNormFast(friendlyUnits[i].getPosition(),
-		                    e.getPosition())
-                            < closest) {
-                        myTarget = e;
-                        closest = supNormFast(friendlyUnits[i].getPosition(),
-		                        e.getPosition());
-                    }
-                }
-                if (myTarget != null
-                        && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
-                    friendlyUnits[i].shootAt(myTarget);
-                    continue;
-                }
-                friendlyUnits[i].move(Direction.values()[optimalDirections[i]]);
+	            if (!moved[i]) {
+		            friendlyUnits[i].move(
+		            		Direction.values()[optimalDirections[i]]);
+	            }
             }
         } else {
             for (FriendlyUnit f: friendlyUnits) {
@@ -591,4 +615,4 @@ public class PlayerAI {
         }
     }
 }
-
+// TODO coordinate shots
