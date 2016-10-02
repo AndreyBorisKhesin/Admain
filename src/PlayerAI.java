@@ -324,55 +324,80 @@ public class PlayerAI {
             }
         }
         EnemyUnit[] targets = new EnemyUnit[4];
-        int maximumDamage = 0;
-        // TODO: Add conditions for a Player not firing at someone due to already having activated a shield.
-        // TODO: Add shielding conditions.
-        // TODO: Consider the 1 guy keeping two enemies alive situation.
+        double maximumScore = 0;
         for (int t0 = 0; t0 < 4; t0++) {
-            if (enemyUnits[t0].getHealth() == 0) {
+            if (enemyUnits[t0].getHealth() == 0
+		            || enemyUnits[t0].getShieldedTurnsRemaining() > 0) {
                 continue;
             }
             for (int t1 = 0; t1 < 4; t1++) {
-                if (enemyUnits[t1].getHealth() == 0) {
+                if (enemyUnits[t1].getHealth() == 0
+		                || enemyUnits[t1].getShieldedTurnsRemaining() > 0) {
                     continue;
                 }
                 for (int t2 = 0; t2 < 4; t2++) {
-                    if (enemyUnits[t2].getHealth() == 0) {
+                    if (enemyUnits[t2].getHealth() == 0
+		                    || enemyUnits[t2].getShieldedTurnsRemaining() > 0) {
                         continue;
                     }
                     for (int t3 = 0; t3 < 4; t3++) {
-                        if (enemyUnits[t3].getHealth() == 0) {
+                        if (enemyUnits[t3].getHealth() == 0
+		                        || enemyUnits[t3].getShieldedTurnsRemaining()
+		                        > 0) {
                             continue;
                         }
                         int[] damages = new int[4];
                         byte[] shooters = new byte[4];
-                        if (friendlyUnits[0].checkShotAgainstEnemy(enemyUnits[t0]) == ShotResult.CAN_HIT_ENEMY) {
-                            damages[t0] += friendlyUnits[0].getCurrentWeapon().getDamage();
+                        if (friendlyUnits[0].checkShotAgainstEnemy(
+                        		enemyUnits[t0]) == ShotResult.CAN_HIT_ENEMY
+		                        && friendlyUnits[0].getShieldedTurnsRemaining()
+		                        == 0) {
+                            damages[t0] += friendlyUnits[0].getCurrentWeapon()
+		                            .getDamage();
                             shooters[t0]++;
                         }
-                        if (friendlyUnits[1].checkShotAgainstEnemy(enemyUnits[t1]) == ShotResult.CAN_HIT_ENEMY) {
-                            damages[t1] += friendlyUnits[1].getCurrentWeapon().getDamage();
+                        if (friendlyUnits[1].checkShotAgainstEnemy(
+                        		enemyUnits[t1]) == ShotResult.CAN_HIT_ENEMY
+		                        && friendlyUnits[1].getShieldedTurnsRemaining()
+		                        == 0) {
+                            damages[t1] += friendlyUnits[1].getCurrentWeapon()
+		                            .getDamage();
                             shooters[t1]++;
                         }
-                        if (friendlyUnits[2].checkShotAgainstEnemy(enemyUnits[t2]) == ShotResult.CAN_HIT_ENEMY) {
-                            damages[t2] += friendlyUnits[2].getCurrentWeapon().getDamage();
+                        if (friendlyUnits[2].checkShotAgainstEnemy(
+                        		enemyUnits[t2]) == ShotResult.CAN_HIT_ENEMY
+		                        && friendlyUnits[2].getShieldedTurnsRemaining()
+		                        == 0) {
+                            damages[t2] += friendlyUnits[2].getCurrentWeapon()
+		                            .getDamage();
                             shooters[t2]++;
                         }
-                        if (friendlyUnits[3].checkShotAgainstEnemy(enemyUnits[t3]) == ShotResult.CAN_HIT_ENEMY) {
-                            damages[t3] += friendlyUnits[3].getCurrentWeapon().getDamage();
+                        if (friendlyUnits[3].checkShotAgainstEnemy(
+                        		enemyUnits[t3]) == ShotResult.CAN_HIT_ENEMY
+		                        && friendlyUnits[3].getShieldedTurnsRemaining()
+		                        == 0) {
+                            damages[t3] += friendlyUnits[3].getCurrentWeapon()
+		                            .getDamage();
                             shooters[t3]++;
                         }
-                        int totalDamage = (
-                            Math.min(damages[0]*shooters[0], enemyUnits[0].getHealth()) +
-                            Math.min(damages[1]*shooters[1], enemyUnits[1].getHealth()) +
-                            Math.min(damages[2]*shooters[2], enemyUnits[2].getHealth()) +
-                            Math.min(damages[3]*shooters[3], enemyUnits[3].getHealth()));
-                        if (totalDamage > maximumDamage) {
+                        double score = 1d * Math.min(damages[0] * shooters[0],
+		                        enemyUnits[0].getHealth())
+		                        / enemyUnits[0].getHealth()
+		                        + 1d * Math.min(damages[1] * shooters[1],
+		                        enemyUnits[1].getHealth())
+		                        / enemyUnits[1].getHealth()
+		                        + 1d * Math.min(damages[2] * shooters[2],
+		                        enemyUnits[2].getHealth())
+		                        / enemyUnits[2].getHealth()
+		                        + 1d * Math.min(damages[3] * shooters[3],
+		                        enemyUnits[3].getHealth())
+		                        / enemyUnits[3].getHealth();
+                        if (score > maximumScore) {
                             targets[0] = enemyUnits[t0];
                             targets[1] = enemyUnits[t1];
                             targets[2] = enemyUnits[t2];
                             targets[3] = enemyUnits[t3];
-                            maximumDamage = totalDamage;
+                            maximumScore = score;
                         }
                     }
                 }
