@@ -458,20 +458,20 @@ public class PlayerAI {
         }
         // Compute the number of mainframes we control and the number of
         // mainframes our enemies control.
-	    int ourMainframes = 0;
-	    int theirMainframes = 0;
-	    for (ControlPoint cp : world.getControlPoints()) {
-		    if (cp.isMainframe()
-				    && enemyNumber(friendlyUnits[0].getTeam(),
-				    cp.getControllingTeam()) == 1) {
-			    ourMainframes++;
-		    }
-		    if (cp.isMainframe()
-				    && enemyNumber(friendlyUnits[0].getTeam(),
-				    cp.getControllingTeam()) == -1) {
-			    theirMainframes++;
-		    }
-	    }
+        int ourMainframes = 0;
+        int theirMainframes = 0;
+        for (ControlPoint cp : world.getControlPoints()) {
+            if (cp.isMainframe()
+                    && enemyNumber(friendlyUnits[0].getTeam(),
+                    cp.getControllingTeam()) == 1) {
+                ourMainframes++;
+            }
+            if (cp.isMainframe()
+                    && enemyNumber(friendlyUnits[0].getTeam(),
+                    cp.getControllingTeam()) == -1) {
+                theirMainframes++;
+            }
+        }
         // We now compute the action value of all possible moves. For each
         // friendly unit, and for each direction they might move in, we
         // compute the value of that position. This is a complicated function
@@ -723,9 +723,9 @@ public class PlayerAI {
                     boolean lastMoveFailed2 = (
                             !friendlyUnits[2].didLastActionSucceed() &&
                             friendlyUnits[2].getLastMoveResult()
-		                            == MoveResult.BLOCKED_BY_ENEMY);
+                                    == MoveResult.BLOCKED_BY_ENEMY);
                     if (this.lastMoves[2] == Direction.values()[d2]
-		                    && lastMoveFailed2) {
+                            && lastMoveFailed2) {
                         continue;
                     }
                     for (int d3 = 0; d3 < Direction.values().length; d3++) {
@@ -740,9 +740,9 @@ public class PlayerAI {
                         boolean lastMoveFailed3 = (
                                 !friendlyUnits[3].didLastActionSucceed() &&
                                 friendlyUnits[3].getLastMoveResult()
-		                                == MoveResult.BLOCKED_BY_ENEMY);
+                                        == MoveResult.BLOCKED_BY_ENEMY);
                         if (this.lastMoves[3] == Direction.values()[d3]
-		                        && lastMoveFailed3) {
+                                && lastMoveFailed3) {
                             continue;
                         }
                         // Compute the unity factor after we have moved our
@@ -800,8 +800,13 @@ public class PlayerAI {
                             resultingHealth[i] = Math.max(0, enemyHealth
                                     + enemyNum * enemyDamage - friendlyHealth
                                     - friendlyNum * friendlyDamage - 10
-		                            * ourMainframes) + 1;
+                                    * ourMainframes) + 1;
                         }
+                        // Compute the total action value due to these moves.
+                        // It is the sum of the action values of the individual
+                        // moves, with consideration for the fear factor and
+                        // with consideration for the fact that idling is
+                        // discouraged.
                         double curActionValue = 0;
                         curActionValue += actionValue[0][d0]
                                 * (Direction.values()[d0] == Direction.NOWHERE
@@ -821,6 +826,7 @@ public class PlayerAI {
                                 / resultingHealth[3];
                         curActionValue *= Math.pow(1d * currentUnity
                                 / resultingUnity, 1d / minDistance);
+                        // Maximize the total action value.
                         if (curActionValue > maximumGoodness) {
                             maximumGoodness = curActionValue;
                             optimalDirections[0] = d0;
@@ -832,6 +838,8 @@ public class PlayerAI {
                 }
             }
         }
+        // Move all units to what we have decided to be the best move, and
+        // store what moves we chose to perform.
         for (int i = 0; i < 4; i++) {
             if (!moved[i]) {
                 friendlyUnits[i].move(
