@@ -2,6 +2,7 @@ import com.orbischallenge.ctz.Constants;
 import com.orbischallenge.game.engine.*;
 import com.orbischallenge.ctz.objects.*;
 import com.orbischallenge.ctz.objects.enums.*;
+import com.orbischallenge.game.engine.drawing2.interpolators.InterpolatedObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -359,12 +360,17 @@ public class PlayerAI {
         }
         if (this.numberOfControlPoints > -1) {// TODO Ask Dima about this
             boolean[] moved = new boolean[4];
-            // Determine if I should shield.
+	        for (int i = 0; i < 4; i++) {
+		        moved[i] = friendlyUnits[i].getHealth() == 0;
+	        }
             for (int i = 0; i < 4; i++) {
+	            if (moved[i]) {
+		            continue;
+	            }
                 int totalDamage = 0;
                 int enemyNum = 0;
                 for (EnemyUnit e: enemyUnits) {
-                    if (world.canShooterShootTarget(
+                    if (e.getHealth() > 0 && world.canShooterShootTarget(
                         e.getPosition(),
                         friendlyUnits[i].getPosition(),
                         e.getCurrentWeapon().getRange())) {
@@ -393,7 +399,8 @@ public class PlayerAI {
 		            }
 	            }
 	            EnemyUnit myTarget = null;
-	            int closest = 20;
+	            //int closest = 20;
+	            int maxDamage = Integer.MIN_VALUE;
 	            for (Direction d: Direction.values()) {
 		            if (d == Direction.NOWHERE) {
 			            continue;
@@ -404,12 +411,28 @@ public class PlayerAI {
 		            if (e == null || e.getShieldedTurnsRemaining() > 0) {
 			            continue;
 		            }
-		            if (supNormFast(friendlyUnits[i].getPosition(),
-				            e.getPosition())
-				            < closest) {
+		            int damage = 0;
+		            int shooters = 0;
+		            for (int j = 0; j < 4; j++) {
+			            if (world.canShooterShootTarget(
+					            friendlyUnits[j].getPosition(), e.getPosition(),
+					            friendlyUnits[j].getCurrentWeapon().getRange())
+					            && friendlyUnits[j].getShieldedTurnsRemaining()
+					            == 0 && !moved[j]){
+				            shooters++;
+				            damage += friendlyUnits[j].getCurrentWeapon()
+						            .getDamage();
+			            }
+		            }
+		            damage = Math.min(damage * shooters, e.getHealth());
+//		            if (supNormFast(friendlyUnits[i].getPosition(),
+//				            e.getPosition())
+//				            < closest) {
+		            if (damage > maxDamage) {
+			            maxDamage = damage;
 			            myTarget = e;
-			            closest = supNormFast(friendlyUnits[i].getPosition(),
-					            e.getPosition());
+//			            closest = supNormFast(friendlyUnits[i].getPosition(),
+//					            e.getPosition());
 		            }
 	            }
 	            if (myTarget != null
@@ -426,6 +449,12 @@ public class PlayerAI {
             for (int i = 0; i < friendlyUnits.length; i++) {
                 for (int j = 0; j < Direction.values().length; j++) {
                     goodness[i][j] = Double.MIN_VALUE;
+	                if (moved[i]) {
+		                if (Direction.values()[j] == Direction.NOWHERE) {
+			                goodness[i][j] = 0;
+		                }
+		                continue;
+	                }
                     Point newStart = Direction.values()[j].movePoint(
                     		friendlyUnits[i].getPosition());
                     if (world.getTile(newStart) == TileType.WALL) {
@@ -484,7 +513,7 @@ public class PlayerAI {
                             this.weaponCoefficient(e.getCurrentWeapon());
                         int len = world.getPathLength(newStart,
                                 e.getPosition());
-                        val /= len+1;
+                        val /= len + 1;
                         val *= 5;
                         if (val >= goodness[i][j]) {
                             goodness[i][j] = val;
@@ -526,11 +555,21 @@ public class PlayerAI {
                             goodness[i][j] = val;
                         }
                     }
+	                for (EnemyUnit enemyUnit : enemyUnits) {
+		                if (enemyUnit.getHealth() > 0
+				                && world.canShooterShootTarget(
+				                Direction.values()[j].movePoint(
+						                friendlyUnits[i].getPosition()),
+				                enemyUnit.getPosition(),
+				                friendlyUnits[i].getCurrentWeapon()
+						                .getRange())) {
+			                goodness[i][j] = Math.max(goodness[i][j], 100);
+		                }
+	                }
                 }
             }
             int[] optimalDirections = new int[4];
             double maximumGoodness = Double.MIN_VALUE;
-            int total = 0;
             int currentUnity = this.unityFactor(world, friendlyUnits);
             for (int d0 = 0; d0 < Direction.values().length; d0++) {
                 Point new0 = Direction.values()[d0].movePoint(
@@ -552,8 +591,7 @@ public class PlayerAI {
 		                        || new2.equals(new0) || new2.equals(new1)) {
                             continue;
                         }
-                        l : for (int d3 = 0; d3 < Direction.values().length;
-                                 d3++) {
+                        for (int d3 = 0; d3 < Direction.values().length; d3++) {
                             Point new3 = Direction.values()[d3].movePoint(
                             		friendlyUnits[3].getPosition());
                             if (world.getTile(new3) == TileType.WALL
@@ -566,12 +604,6 @@ public class PlayerAI {
                             directions[1] = Direction.values()[d1];
                             directions[2] = Direction.values()[d2];
                             directions[3] = Direction.values()[d3];
-	                        for (int i = 0; i < 4; i++) {
-		                        if (moved[i] &&
-				                        directions[i] != Direction.NOWHERE) {
-			                        continue l;
-		                        }
-	                        }
                             int resultingUnity = this.unityFactor(world,
 		                            friendlyUnits, directions);
                             double curGoodness = 0;
@@ -580,8 +612,8 @@ public class PlayerAI {
                             curGoodness += goodness[2][d2];
                             curGoodness += goodness[3][d3];
                             curGoodness *= Math.pow(currentUnity
-		                            / resultingUnity, 0.5);//TODO fiddle with
-	                        // this more
+		                            / resultingUnity, 0.5);
+	                        //TODO fiddle with this exponent more
                             if (curGoodness > maximumGoodness) {
                                 maximumGoodness = curGoodness;
                                 optimalDirections[0] = d0;
@@ -589,7 +621,6 @@ public class PlayerAI {
                                 optimalDirections[2] = d2;
                                 optimalDirections[3] = d3;
                             }
-                            total++;
                         }
                     }
                 }
@@ -615,4 +646,3 @@ public class PlayerAI {
         }
     }
 }
-// TODO coordinate shots
