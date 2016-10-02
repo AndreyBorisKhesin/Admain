@@ -430,14 +430,14 @@ public class PlayerAI {
 //                        closest = supNormFast(friendlyUnits[i].getPosition(),
 //                                e.getPosition());
                 }
-            }*/
+            }
             if (myTarget != null
                     && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
                 friendlyUnits[i].shootAt(myTarget);
                 moved[i] = true;
                 continue;
             }
-        }
+        }*/
         // for each person, for each direction,
         // take maximum of each possible target value.
         // Memoize the goodness for this person direction thing.
@@ -562,7 +562,7 @@ public class PlayerAI {
                             friendlyUnits[i].getCurrentWeapon()
                                     .getRange())) {
                         goodness[i][j] = Math.max(goodness[i][j],
-                                1000 / world.getPathLength(
+                                100d / world.getPathLength(
                                         Direction.values()[j].movePoint(
                                                 friendlyUnits[i].getPosition()),
                                         enemyUnit.getPosition()));
@@ -588,7 +588,7 @@ public class PlayerAI {
                 continue;
             }
             if (
-                    lastMove[0] == Direction.values()[d0] &&
+                    this.lastMoves[0] == Direction.values()[d0] &&
                     !friendlyUnits[0].didLastActionSucceed() &&
                     friendlyUnits[0].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
                 continue;
@@ -601,7 +601,7 @@ public class PlayerAI {
                     continue;
                 }
                 if (
-                        lastMove[1] == Direction.values()[d1] &&
+                        this.lastMoves[1] == Direction.values()[d1] &&
                         !friendlyUnits[1].didLastActionSucceed() &&
                         friendlyUnits[1].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
                     continue;
@@ -614,7 +614,7 @@ public class PlayerAI {
                         continue;
                     }
                     if (
-                            lastMove[2] == Direction.values()[d2] &&
+                            this.lastMoves[2] == Direction.values()[d2] &&
                             !friendlyUnits[2].didLastActionSucceed() &&
                             friendlyUnits[2].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
                         continue;
@@ -628,7 +628,7 @@ public class PlayerAI {
                             continue;
                         }
                         if (
-                                lastMove[3] == Direction.values()[d3] &&
+                                this.lastMoves[3] == Direction.values()[d3] &&
                                 !friendlyUnits[3].didLastActionSucceed() &&
                                 friendlyUnits[3].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY) {
                             continue;
@@ -646,7 +646,7 @@ public class PlayerAI {
                         curGoodness += goodness[2][d2];
                         curGoodness += goodness[3][d3];
                         curGoodness *= Math.pow((1d*currentUnity)
-                                / resultingUnity, 1d / (3 + minDistance));
+                                / resultingUnity, 0.0/*1d / (3 + minDistance)*/);
                         //TODO fiddle with this exponent more
                         if (curGoodness > maximumGoodness) {
                             maximumGoodness = curGoodness;
