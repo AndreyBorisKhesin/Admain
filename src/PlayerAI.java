@@ -300,11 +300,19 @@ public class PlayerAI {
     }
 
     private int unityFactor(World world, FriendlyUnit[] friendlyUnits) {
-        FriendlyUnit[] livingFriends = new FriendlyUnit[4];
+        Direction[] directions = new Direction[4];
+        for (int i = 0; i < directions.length; i++) {
+            directions[i] = Direction.NOWHERE;
+        }
+        return this.unityFactor(world, friendlyUnits, directions);
+    }
+
+    private int unityFactor(World world, FriendlyUnit[] friendlyUnits, Direction[] directions) {
+        Point[] points = new Point[4];
         int i = 0;
         for (FriendlyUnit f : friendlyUnits) {
             if (f.getHealth() != 0) {
-                livingFriends[i] = f;
+                points[i] = directions[i].movePoint(f.getPosition());
                 i++;
             }
         }
@@ -313,19 +321,19 @@ public class PlayerAI {
             case 1: return 1;
             case 2: return this.totalDistance(
                         world,
-                        livingFriends[0].getPosition(),
-                        livingFriends[1].getPosition());
+                        points[0],
+                        points[1]);
             case 3: return this.totalDistance(
                         world,
-                        livingFriends[0].getPosition(),
-                        livingFriends[1].getPosition(),
-                        livingFriends[2].getPosition());
+                        points[0],
+                        points[1],
+                        points[2]);
             case 4: return this.totalDistance(
                         world,
-                        livingFriends[0].getPosition(),
-                        livingFriends[1].getPosition(),
-                        livingFriends[2].getPosition(),
-                        livingFriends[3].getPosition());
+                        points[0],
+                        points[1],
+                        points[2],
+                        points[3]);
             default: return -1;
         }
     }
@@ -346,7 +354,6 @@ public class PlayerAI {
         if (!this.statsSet) {
             this.setStats(world, enemyUnits, friendlyUnits);
         }
-        System.out.println(this.unityFactor(world, friendlyUnits));
         if (this.numberOfControlPoints > -1) {
             boolean[] moved = new boolean[4];
             // Determine if I should shield.
@@ -398,7 +405,7 @@ public class PlayerAI {
                                 if (friendlyUnits[i].getHealth() == 0) {
                                     val = Double.MIN_VALUE;
                                 } else {
-                                    val *= 500.0 / friendlyUnits[i].getHealth();
+                                    val *= 1000.0 / friendlyUnits[i].getHealth();
                                 }
                                 break;
                             case WEAPON_LASER_RIFLE:
@@ -471,34 +478,44 @@ public class PlayerAI {
             int[] optimalDirections = new int[4];
             double maximumGoodness = Double.MIN_VALUE;
             int total = 0;
+            int currentUnity = this.unityFactor(world, friendlyUnits);
             for (int d0 = 0; d0 < Direction.values().length; d0++) {
-                if (world.getTile(
-                        Direction.values()[d0].movePoint(friendlyUnits[0].getPosition())) == TileType.WALL) {
+                Point new0 = Direction.values()[d0].movePoint(friendlyUnits[0].getPosition());
+                if (world.getTile(new0) == TileType.WALL) {
                     continue;
                 }
                 for (int d1 = 0; d1 < Direction.values().length; d1++) {
-                    if (world.getTile(
-                            Direction.values()[d1].movePoint(friendlyUnits[1].getPosition())) == TileType.WALL) {
+                    Point new1 = Direction.values()[d1].movePoint(friendlyUnits[1].getPosition());
+                    if (world.getTile(new1) == TileType.WALL) {
                         continue;
                     }
                     for (int d2 = 0; d2 < Direction.values().length; d2++) {
-                        if (world.getTile(
-                                Direction.values()[d2].movePoint(friendlyUnits[2].getPosition())) == TileType.WALL) {
+                        Point new2 = Direction.values()[d2].movePoint(friendlyUnits[2].getPosition());
+                        if (world.getTile(new2) == TileType.WALL) {
                             continue;
                         }
                         for (int d3 = 0; d3 < Direction.values().length; d3++) {
-                            if (world.getTile(
-                                    Direction.values()[d3].movePoint(friendlyUnits[3].getPosition())) == TileType.WALL) {
+                            Point new3 = Direction.values()[d3].movePoint(friendlyUnits[3].getPosition());
+                            if (world.getTile(new3) == TileType.WALL) {
                                 continue;
                             }
                             // TODO: Add check for collision.
                             // TODO: Add clumping mechanism.
-                            // TODO: Choosing to shoot.
+                            Direction[] directions = new Direction[4];
+                            directions[0] = Direction.values()[d0];
+                            directions[1] = Direction.values()[d1];
+                            directions[2] = Direction.values()[d2];
+                            directions[3] = Direction.values()[d3];
+                            int resultingUnity = this.unityFactor(world, friendlyUnits, directions);
                             double curGoodness = 0;
                             curGoodness += goodness[0][d0];
                             curGoodness += goodness[1][d1];
                             curGoodness += goodness[2][d2];
                             curGoodness += goodness[3][d3];
+                            //curGoodness *= currentUnity + 30;
+                            if (resultingUnity != 0) {
+                            //    curGoodness /= resultingUnity + 30;
+                            }
                             if (curGoodness > maximumGoodness) {
                                 maximumGoodness = curGoodness;
                                 optimalDirections[0] = d0;
