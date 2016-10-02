@@ -430,14 +430,14 @@ public class PlayerAI {
 //                        closest = supNormFast(friendlyUnits[i].getPosition(),
 //                                e.getPosition());
                 }
-            }*/
+            }
             if (myTarget != null
                     && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
                 friendlyUnits[i].shootAt(myTarget);
                 moved[i] = true;
                 continue;
             }
-        }
+        }*/
         // for each person, for each direction,
         // take maximum of each possible target value.
         // Memoize the goodness for this person direction thing.
@@ -640,14 +640,35 @@ public class PlayerAI {
                         directions[3] = Direction.values()[d3];
                         int resultingUnity = this.unityFactor(world,
                                 friendlyUnits, directions);
+	                    int[] resultingHealth = {1, 1, 1, 1};
+	                    for (int i = 0; i < friendlyUnits.length; i++) {
+		                    if (friendlyUnits[i].getHealth() == 0) {
+			                    continue;
+		                    }
+		                    int enemyNum = 0;
+		                    int damage = 0;
+		                    for (EnemyUnit e : enemyUnits) {
+			                    if (e.getHealth() > 0
+					                    && world.canShooterShootTarget(
+					                    e.getPosition(),
+					                    directions[i].movePoint(
+					                    		friendlyUnits[i].getPosition()),
+					                    e.getCurrentWeapon().getRange())) {
+				                    damage += e.getCurrentWeapon().getDamage();
+				                    enemyNum++;
+			                    }
+		                    }
+		                    resultingHealth[i] *= Math.max(0,
+				                    friendlyUnits[i].getHealth()
+						                    - enemyNum * damage) + 1;
+	                    }
                         double curGoodness = 0;
-                        curGoodness += goodness[0][d0];
-                        curGoodness += goodness[1][d1];
-                        curGoodness += goodness[2][d2];
-                        curGoodness += goodness[3][d3];
-                        curGoodness *= Math.pow((1d*currentUnity)
-                                / resultingUnity, 1d / (3 + minDistance));
-                        //TODO fiddle with this exponent more
+                        curGoodness += goodness[0][d0] * resultingHealth[0];
+                        curGoodness += goodness[1][d1] * resultingHealth[1];
+                        curGoodness += goodness[2][d2] * resultingHealth[2];
+                        curGoodness += goodness[3][d3] * resultingHealth[3];
+                        curGoodness *= Math.pow(1d * currentUnity
+				                        / resultingUnity, 1d / minDistance);
                         if (curGoodness > maximumGoodness) {
                             maximumGoodness = curGoodness;
                             optimalDirections[0] = d0;
