@@ -338,6 +338,21 @@ public class PlayerAI {
         }
         System.out.println(this.unityFactor(world, friendlyUnits));
         if (this.numberOfControlPoints > -1) {
+            // Determine if I should shield.
+            for (FriendlyUnit f: friendlyUnits) {
+                int totalDamage = 0;
+                for (EnemyUnit e: enemyUnits) {
+                    if (world.canShooterShootTarget(
+                        e.getPosition(),
+                        f.getPosition(),
+                        e.getCurrentWeapon().getRange())) {
+                        totalDamage += e.getCurrentWeapon().getDamage();
+                    }
+                }
+                if (totalDamage >= f.getHealth() && f.getNumShields() > 0) {
+                    f.activateShields();
+                }
+            }
             for (FriendlyUnit f: friendlyUnits) {
                 Pickup pickupHere = world.getPickupAtPosition(f.getPosition());
                 if (pickupHere != null) {
@@ -372,6 +387,16 @@ public class PlayerAI {
                 for (Pickup p: world.getPickups()) {
                     if (!this.isGun(p)) {
                         double val = 500.0/f.getHealth();
+                        if (p.getPickupType() == PickupType.SHIELD) {
+                            val *= 3;
+                            int playnum = 0;
+                            for (FriendlyUnit f : friendlyUnits) {
+                                if (f.getHealth() > 0) {
+                                    playnum++;
+                                }
+                            }
+                            val /= playnum;
+                        }
                         int len = world.getPathLength(f.getPosition(), p.getPosition());
                         if (len != 0) {
                             val /= len;
