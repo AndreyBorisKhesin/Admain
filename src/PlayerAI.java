@@ -798,9 +798,9 @@ public class PlayerAI {
                             // between power projected by the enemy and power
                             // projected by our team.
                             fearFactor[i] = Math.max(0, enemyHealth
-                                    + enemyNum * enemyDamage - friendlyHealth
-                                    - friendlyNum * friendlyDamage - 10
-                                    * ourMainframes) + 1;
+                                    + enemyNum * enemyDamage - 2
+		                            * (friendlyHealth + friendlyNum
+		                            * friendlyDamage) - 10 * ourMainframes) + 1;
                         }
                         // Compute the total action value due to these moves.
                         // It is the sum of the action values of the individual
