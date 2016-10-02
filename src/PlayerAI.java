@@ -2,36 +2,60 @@ import com.orbischallenge.ctz.Constants;
 import com.orbischallenge.game.engine.*;
 import com.orbischallenge.ctz.objects.*;
 import com.orbischallenge.ctz.objects.enums.*;
-import com.orbischallenge.game.engine.drawing2.interpolators.InterpolatedObject;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class PlayerAI {
-    static final Direction[] directions = {Direction.EAST, Direction.NORTH,
-            Direction.NORTH_EAST, Direction.NORTH_WEST, Direction.SOUTH,
-            Direction.SOUTH_EAST, Direction.SOUTH_WEST, Direction.WEST};
-
+    /**
+     * Whether or not the statistics listed below have been set.
+     *
+     * On the first turn, this AI precomputes a bunch of statistics that remain
+     * constant throughtout the game, to not have to compute them later. This
+     * variable is used to indicate that this should only be done on the first turn.
+     */
     boolean statsSet;
-    int numberOfControlPoints;
-    int numberOfMainframes;
-    int worldHeight;
-    int worldWidth;
+
+    /**
+     * The maximum distance a gun could be used to fire on this map.
+     *
+     * On certain maps, there are no long stretches of corridor, so guns cannot
+     * reach for their entire range. In this case, we wish to not pick up guns
+     * whose only advantage is range. Thus, we compute how far we could
+     * actually reach with any gun, and use that to determine how much range is
+     * really worth.
+     */
     int maximumEffectiveRange;
+
+    /**
+     * The directions that all friendly units moved in last turn.
+     *
+     * This is used to realized situations in which moving in one direction is
+     * futile. Should the AI attempt to move a unit in the same direction, but
+     * it failed before, we want to try something different. Thus, we store the
+     * direction we walked the previous turn, to prevent that.
+     */
     Direction[] lastMoves;
-    // int averageEffectiveRange;
-    //
 
-    double fudgeFactor = 1.01;
+    /**
+     * Indicates the desire by a given unit to fight.
+     *
+     * If we have a better weapon than the enemy, we wish to fight them, but if
+     * they have a better weapon, then we don't. However, if we have balanced
+     * weapons, our behaviour is not so straight forward. This constant is used
+     * to indicate our willingness to fight. The greater this constant, the
+     * more a unit with equal weapons will wish to fight another.
+     */
+    final double courageCoefficient = 1.5;
 
-	/**
-	 * The totalDistance method evaluates how separated the friendly units are
-	 * by calculating the sum of their pairwise separations.
-	 * @param world The state of the world, containing a pathfinding method.
-	 * @param ps The set of points representing unit locations.
-	 * @return The total pairwise distance between points by shortest paths.
-	 */
-	private int totalDistance(World world, Point... ps) {
+    /**
+     * The totalDistance method evaluates how separated the friendly units are
+     * by calculating the sum of their pairwise separations.
+     * @param world The state of the world, containing a pathfinding method.
+     * @param ps The set of points representing unit locations.
+     * @return The total pairwise distance between points by shortest paths.
+     */
+    private int totalDistance(World world, Point... ps) {
         int total = 0;
         for (Point p1 : ps) {
             for (Point p2 : ps) {
@@ -41,14 +65,15 @@ public class PlayerAI {
         return total / 2;
     }
 
-	/**
-	 * The enemyNumber method simply compares two teams to determine if they
-	 * are equal.
-	 * @param ours The first team.
-	 * @param other The second team.
-	 * @return Returns 1 if the teams are the same and -1 if they are different.
-	 */
-	private int enemyNumber(Team ours, Team other) {
+    /**
+     * The enemyNumber method simply compares two teams to determine if they
+     * are equal.
+     * @param ours The first team.
+     * @param other The second team.
+     * @return Returns 1 if the teams are the same, -1 if they are different,
+     * and 0 if one of the teams is unaffiliated.
+     */
+    private int enemyNumber(Team ours, Team other) {
         if (other == Team.NONE) {
             return 0;
         }
@@ -61,50 +86,38 @@ public class PlayerAI {
         return -1;
     }
 
-	/**
-	 * Initializes the class variables with helpful constants.
-	 * @param world The world in which the game is taking place.
-	 * @param enemyUnits The array of enemy units.
-	 * @param friendlyUnits The array of friendly units.
-	 */
-	private void setStats(
+    /**
+     * Initializes the class variables with helpful constants.
+     * @param world The world in which the game is taking place.
+     * @param enemyUnits The array of enemy units.
+     * @param friendlyUnits The array of friendly units.
+     */
+    private void setStats(
             World world,
             EnemyUnit[] enemyUnits,
             FriendlyUnit[] friendlyUnits) {
-        ControlPoint[] points = world.getControlPoints();
-        this.numberOfControlPoints = points.length;
-        this.numberOfMainframes = 0;
-        for (ControlPoint p: points) {
-            if (p.isMainframe()) {
-                this.numberOfMainframes++;
-            }
-        }
-
-        System.out.print("Mainframe amount: ");
-        System.out.println(this.numberOfMainframes);
-
+        // Iterate along the top row and the left column to determine the size
+        // of the world.
         Point p = Point.origin();
-        this.worldHeight = 0;
+        int worldHeight = 0;
         while (world.isWithinBounds(p)) {
             p = p.add(new Point(0,1));
-            this.worldWidth++;
+            worldWidth++;
         }
         p = Point.origin();
-        this.worldHeight = 0;
+        int worldHeight = 0;
         while (world.isWithinBounds(p)) {
             p = p.add(new Point(1,0));
-            this.worldHeight++;
+            worldHeight++;
         }
 
-        System.out.print("Width:");
-        System.out.println(this.worldWidth);
-
-        System.out.print("Height: ");
-        System.out.println(this.worldHeight);
-
+        // Iterate over the entire board, and compute the maximum shootable
+        // distance for each direction. This is used to compute the maximum
+        // effective range, as discussed above. It computes the maximum
+        // distance by iteraing down the line of sight, checking for walls.
         this.maximumEffectiveRange = 0;
-        for (int x = 0; x < this.worldWidth; x++) {
-            for (int y = 0; y < this.worldHeight; y++) {
+        for (int x = 0; x < worldWidth; x++) {
+            for (int y = 0; y < worldHeight; y++) {
                 Point start = new Point(x, y);
                 if (world.getTile(start) == TileType.WALL) {
                     continue;
@@ -136,16 +149,18 @@ public class PlayerAI {
         }
         System.out.print("Maximum Effective Range: ");
         System.out.println(this.maximumEffectiveRange);
+        // Indicate that the stats are set, and that we shouldn't run this
+        // method anymore.
         this.statsSet = true;
     }
 
-	/**
-	 * The isGun method determines whether a given item is one of the four guns
-	 * out of the six items that can be picked up.
-	 * @param p The item to be picked up.
-	 * @return Whether or not the item to be picked up is a gun.
-	 */
-	private boolean isGun(Pickup p) {
+    /**
+     * The isGun method determines whether a given item is one of the four guns
+     * out of the six items that can be picked up.
+     * @param p The item to be picked up.
+     * @return Whether or not the item to be picked up is a gun.
+     */
+    private boolean isGun(Pickup p) {
         if (p == null) {
             return false;
         }
@@ -159,12 +174,12 @@ public class PlayerAI {
         }
     }
 
-	/**
-	 * Returns the weapon type of an item that can be picked up if it is a gun.
-	 * @param p The item to be picked up.
-	 * @return The weapon type of the gun to be picked up and null otherwise.
-	 */
-	private WeaponType pickToGun (Pickup p) {
+    /**
+     * Returns the weapon type of an item that can be picked up if it is a gun.
+     * @param p The item to be picked up.
+     * @return The weapon type of the gun to be picked up and null otherwise.
+     */
+    private WeaponType pickToGun (Pickup p) {
         if (p == null) {
             return null;
         }
@@ -178,12 +193,12 @@ public class PlayerAI {
         }
     }
 
-	/**
-	 * The weaponCoefficient method calculates the value of a given gun.
-	 * @param w The type of gun in question.
-	 * @return The product of the gun's damage and effective range on the map.
-	 */
-	private int weaponCoefficient (WeaponType w) {
+    /**
+     * The weaponCoefficient method calculates the value of a given gun.
+     * @param w The type of gun in question.
+     * @return The product of the gun's damage and effective range on the map.
+     */
+    private int weaponCoefficient (WeaponType w) {
         if (w == null) {
             return 0;
         }
@@ -191,28 +206,28 @@ public class PlayerAI {
                 * w.getDamage();
     }
 
-	/**
-	 * The weaponCoefficient method calculates the larger weapon coefficient of
-	 * a gun and any gun that is located at a given point on the map.
-	 * @param w The type of weapon that is being considered.
-	 * @param world The world that the game is taking place in.
-	 * @param point The point where a second potential weapon could lie.
-	 * @return The larger weapon coefficient of the two weapons.
-	 */
+    /**
+     * The weaponCoefficient method calculates the larger weapon coefficient of
+     * a gun and any gun that is located at a given point on the map.
+     * @param w The type of weapon that is being considered.
+     * @param world The world that the game is taking place in.
+     * @param point The point where a second potential weapon could lie.
+     * @return The larger weapon coefficient of the two weapons.
+     */
     private int modifiedWeaponCoefficient (WeaponType w, World world,
                                            Point point) {
         return Math.max(weaponCoefficient(w),
                 weaponCoefficient(pickToGun(world.getPickupAtPosition(point))));
     }
 
-	/**
-	 * The unityFactor method computes the total distance between the living
-	 * units out of the friendly units.
-	 * @param world The world that the game is taking place in.
-	 * @param friendlyUnits The friendly units whose separation is calculated.
-	 * @return The total separation between the friendly units.
-	 */
-	private int unityFactor(World world, FriendlyUnit[] friendlyUnits) {
+    /**
+     * The unityFactor method computes the total distance between the living
+     * units out of the friendly units.
+     * @param world The world that the game is taking place in.
+     * @param friendlyUnits The friendly units whose separation is calculated.
+     * @return The total separation between the friendly units.
+     */
+    private int unityFactor(World world, FriendlyUnit[] friendlyUnits) {
         Direction[] directions = new Direction[4];
         for (int i = 0; i < directions.length; i++) {
             directions[i] = Direction.NOWHERE;
@@ -220,15 +235,15 @@ public class PlayerAI {
         return this.unityFactor(world, friendlyUnits, directions);
     }
 
-	/**
-	 * The unityFactor of the friendly units after they have been moved by one
-	 * tile in a given direction.
-	 * @param world The world that the game is taking place in.
-	 * @param friendlyUnits The friendly units whose separation is calculated.
-	 * @param directions The directions in which all the units move.
-	 * @return The total separation between the friendly units after a move.
-	 */
-	private int unityFactor(World world, FriendlyUnit[] friendlyUnits,
+    /**
+     * The unityFactor of the friendly units after they have been moved by one
+     * tile in a given direction.
+     * @param world The world that the game is taking place in.
+     * @param friendlyUnits The friendly units whose separation is calculated.
+     * @param directions The directions in which all the units move.
+     * @return The total separation between the friendly units after a move.
+     */
+    private int unityFactor(World world, FriendlyUnit[] friendlyUnits,
                             Direction[] directions) {
         Point[] points = new Point[4];
         int alive = 0;
@@ -274,23 +289,26 @@ public class PlayerAI {
             World world,
             EnemyUnit[] enemyUnits,
             FriendlyUnit[] friendlyUnits) {
+        // If we haven't computed the statistics yet, remove it.
         if (!this.statsSet) {
             this.setStats(world, enemyUnits, friendlyUnits);
         }
-        for (FriendlyUnit f : friendlyUnits) {
-            System.out.println(f.getLastMoveResult());
-            System.out.println(f.getLastShotResult());
-        }
+        // Indicates whether or not a given unit has already moved. We use this
+        // to avoid overriding instructions we passed already.
         boolean[] moved = new boolean[4];
+        // Dead units should not get instructions.
         for (int i = 0; i < 4; i++) {
             moved[i] = friendlyUnits[i].getHealth() == 0;
         }
+        // For each unit, do the following...
         for (int i = 0; i < 4; i++) {
             if (moved[i]) {
                 continue;
             }
             int totalDamage = 0;
             int enemyNum = 0;
+            // Compute the total amount of damage the given unit might receive
+            // this turn.
             for (EnemyUnit e: enemyUnits) {
                 if (e.getHealth() > 0 && world.canShooterShootTarget(
                     e.getPosition(),
@@ -300,6 +318,8 @@ public class PlayerAI {
                     enemyNum++;
                 }
             }
+            // If this unit might die this turn, and it has a shield, activate
+            // it.
             if (totalDamage * enemyNum >= friendlyUnits[i].getHealth()
                     && friendlyUnits[i].getNumShields() > 0
                     && friendlyUnits[i].getShieldedTurnsRemaining() == 0) {
@@ -307,14 +327,17 @@ public class PlayerAI {
                 moved[i] = true;
                 continue;
             }
+            // Otherwise, determine whether the unit should pick up the pickup
+            // it's standing on. We always want shields and repair kits, but a
+            // gun should only be picked up if it's better than our current.
             Pickup pickupHere = world.getPickupAtPosition(
                     friendlyUnits[i].getPosition());
             if (pickupHere != null) {
                 if (!this.isGun(pickupHere) || (
                         this.weaponCoefficient(
                                 friendlyUnits[i].getCurrentWeapon()) <
-                                this.weaponCoefficient(
-                                        this.pickToGun(pickupHere)))) {
+                        this.weaponCoefficient(
+                                this.pickToGun(pickupHere)))) {
                     friendlyUnits[i].pickupItemAtPosition();
                     moved[i] = true;
                     continue;
@@ -543,7 +566,7 @@ public class PlayerAI {
                             continue;
                         }
                         double val =
-                            this.fudgeFactor * this.weaponCoefficient(
+                            this.courageCoefficient * this.weaponCoefficient(
                                     friendlyUnits[i].getCurrentWeapon()) -
                             this.modifiedWeaponCoefficient(e.getCurrentWeapon(),
                                     world, e.getPosition());
