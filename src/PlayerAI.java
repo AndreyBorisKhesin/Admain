@@ -25,6 +25,15 @@ public class PlayerAI {
     double fudgeFactor = 1.01;
 
 	/**
+	 * Default constructor for PlayerAI class that initialized the variables
+	 * stats set to false and last moves to an empty array.
+	 */
+	public PlayerAI() {
+		statsSet = false;
+		lastMoves = new Direction[4];
+	}
+
+	/**
 	 * The totalDistance method evaluates how separated the friendly units are
 	 * by calculating the sum of their pairwise separations.
 	 * @param world The state of the world, containing a pathfinding method.
