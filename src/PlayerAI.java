@@ -556,7 +556,11 @@ public class PlayerAI {
 			                enemyUnit.getPosition(),
 			                friendlyUnits[i].getCurrentWeapon()
 					                .getRange())) {
-		                goodness[i][j] = Math.max(goodness[i][j], 100);
+		                goodness[i][j] = Math.max(goodness[i][j],
+				                1000 / world.getPathLength(
+				                		Direction.values()[j].movePoint(
+				                				friendlyUnits[i].getPosition()),
+						                enemyUnit.getPosition()));
 	                }
                 }
             }
