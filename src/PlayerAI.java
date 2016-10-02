@@ -108,7 +108,7 @@ public class PlayerAI {
         // Iterate along the top row and the left column to determine the size
         // of the world.
         Point p = Point.origin();
-        int worldHeight = 0;
+        int worldWidth = 0;
         while (world.isWithinBounds(p)) {
             p = p.add(new Point(0,1));
             worldWidth++;
