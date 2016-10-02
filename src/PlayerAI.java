@@ -140,10 +140,9 @@ public class PlayerAI {
                 if (world.getTile(start) == TileType.WALL) {
                     continue;
                 }
-                for (Direction d: Direction.values()) {
-                    if (d == Direction.NOWHERE) {
-                        continue;
-                    }
+                for (Direction d: new Direction[] {Direction.EAST,
+		                Direction.NORTH_EAST, Direction.SOUTH,
+		                Direction.SOUTH_EAST}) {
                     int r = 0;
                     Point target = d.movePoint(start);
                     while (world.canShooterShootTarget(start, target, 10)) {
@@ -181,6 +180,9 @@ public class PlayerAI {
     }
 
     private WeaponType pickToGun (Pickup p) {
+	    if (p == null) {
+		    return null;
+	    }
         PickupType pt = p.getPickupType();
         switch(pt) {
             case WEAPON_LASER_RIFLE: return WeaponType.LASER_RIFLE;
@@ -294,7 +296,7 @@ public class PlayerAI {
         if (!this.statsSet) {
             this.setStats(world, enemyUnits, friendlyUnits);
         }
-        if (this.numberOfControlPoints > -1) {// TODO Ask Dima about this
+        if (this.numberOfControlPoints > -1) {
             boolean[] moved = new boolean[4];
 	        for (int i = 0; i < 4; i++) {
 		        moved[i] = friendlyUnits[i].getHealth() == 0;
@@ -382,6 +384,12 @@ public class PlayerAI {
             // Memoize the goodness for this person direction thing.
             double[][] goodness =
                 new double[friendlyUnits.length][Direction.values().length];
+	        int playNum = 0;
+	        for (FriendlyUnit fu : friendlyUnits) {
+		        if (fu.getHealth() > 0) {
+			        playNum++;
+		        }
+	        }
             for (int i = 0; i < friendlyUnits.length; i++) {
                 for (int j = 0; j < Direction.values().length; j++) {
                     goodness[i][j] = Double.MIN_VALUE;
@@ -397,26 +405,15 @@ public class PlayerAI {
                         continue;
                     }
                     for (Pickup p: world.getPickups()) {
-                        double val = 1.0;
+                        double val = 1d;
                         switch(p.getPickupType()) {
                             case SHIELD:
                                 val *= 3;
-                                int playnum = 0;
-                                for (FriendlyUnit fu : friendlyUnits) {
-                                    if (fu.getHealth() > 0) {
-                                        playnum++;
-                                    }
-                                }
-                                if (playnum != 0) {
-                                    val /= playnum;
+                                if (playNum != 0) {
+                                    val /= playNum;
                                 }
                             case REPAIR_KIT:
-                                if (friendlyUnits[i].getHealth() == 0) {
-                                    val = Double.MIN_VALUE;
-                                } else {
-                                    val *= 1000.0
-		                                    / friendlyUnits[i].getHealth();
-                                }
+                                val *= 1000d / friendlyUnits[i].getHealth();
                                 break;
                             case WEAPON_LASER_RIFLE:
                             case WEAPON_MINI_BLASTER:
@@ -432,9 +429,7 @@ public class PlayerAI {
                         int len = world.getPathLength(
                                 newStart,
                                 p.getPosition());
-                        if (len != 0) {
-                            val /= len + 1;
-                        }
+	                    val /= len + 1;
                         if (val >= goodness[i][j]) {
                             goodness[i][j] = val;
                         }
@@ -450,8 +445,7 @@ public class PlayerAI {
 		                            world, e.getPosition());
                         int len = world.getPathLength(newStart,
                                 e.getPosition());
-                        val /= len + 1;
-                        val *= 5;
+                        val *= 5 / (len + 1);
                         if (val >= goodness[i][j]) {
                             goodness[i][j] = val;
                         }
@@ -479,11 +473,11 @@ public class PlayerAI {
                         }
                         if (enemyNumber(friendlyUnits[i].getTeam(),
 		                        cp.getControllingTeam()) == 1) {
-                            val = Double.MIN_VALUE;
+                            val = -1000000000;
                         }
                         if (cp.isMainframe()) {
-                            val *= 3;
-                            val /= (ourMainframes + 0.5);
+                            val *= 3 / (ourMainframes
+		                            + playNum <= 2 ? 0.1 : 0.5);
                         }
                         if (theirMainframes == 1) {
                             val *= 2;
@@ -492,7 +486,7 @@ public class PlayerAI {
                             goodness[i][j] = val;
                         }
                     }
-	                for (EnemyUnit enemyUnit : enemyUnits) {
+	                /*for (EnemyUnit enemyUnit : enemyUnits) {
 		                if (enemyUnit.getHealth() > 0
 				                && world.canShooterShootTarget(
 				                Direction.values()[j].movePoint(
@@ -502,11 +496,11 @@ public class PlayerAI {
 						                .getRange())) {
 			                goodness[i][j] = Math.max(goodness[i][j], 100);
 		                }
-	                }
+	                }*/
                 }
             }
-            int[] optimalDirections = new int[4];
-            double maximumGoodness = Double.MIN_VALUE;
+            int[] optimalDirections = new int[4];//{-1, -1, -1, -1};
+            double maximumGoodness = -1000000000;
             int currentUnity = this.unityFactor(world, friendlyUnits);
             for (int d0 = 0; d0 < Direction.values().length; d0++) {
                 Point new0 = Direction.values()[d0].movePoint(
@@ -531,11 +525,17 @@ public class PlayerAI {
                         for (int d3 = 0; d3 < Direction.values().length; d3++) {
                             Point new3 = Direction.values()[d3].movePoint(
                             		friendlyUnits[3].getPosition());
+	                        if (d0 == 1 && d1 == 5 && d2 == 5 && d3 == 1) {
+		                        System.out.println("A" + d0 + d1 + d2 + d3);
+	                        }
                             if (world.getTile(new3) == TileType.WALL
 		                            || new3.equals(new0) || new3.equals(new1)
 		                            || new3.equals(new2)) {
                                 continue;
                             }
+	                        if (d0 == 1 && d1 == 5 && d2 == 5 && d3 == 1) {
+		                        System.out.println("B" + d0 + d1 + d2 + d3);
+	                        }
                             Direction[] directions = new Direction[4];
                             directions[0] = Direction.values()[d0];
                             directions[1] = Direction.values()[d1];
@@ -549,7 +549,7 @@ public class PlayerAI {
                             curGoodness += goodness[2][d2];
                             curGoodness += goodness[3][d3];
                             curGoodness *= Math.pow(currentUnity
-		                            / resultingUnity, 0.5);
+		                            / resultingUnity, 0.1);
 	                        //TODO fiddle with this exponent more
                             if (curGoodness > maximumGoodness) {
                                 maximumGoodness = curGoodness;
@@ -568,6 +568,7 @@ public class PlayerAI {
 		            		Direction.values()[optimalDirections[i]]);
 	            }
             }
+	        System.out.println("" + optimalDirections[0] + optimalDirections[1] + optimalDirections[2] + optimalDirections[3]);
         } else {
             for (FriendlyUnit f: friendlyUnits) {
                 f.move(world.getNextDirectionInPath(
