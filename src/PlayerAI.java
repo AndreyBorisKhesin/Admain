@@ -3,6 +3,7 @@ import com.orbischallenge.game.engine.*;
 import com.orbischallenge.ctz.objects.*;
 import com.orbischallenge.ctz.objects.enums.*;
 
+import java.util.ArrayList;
 
 public class PlayerAI {
     static final Direction[] directions = {Direction.EAST, Direction.NORTH,
@@ -22,6 +23,64 @@ public class PlayerAI {
 
     public PlayerAI() {
         statsSet = false;
+    }
+
+    private ArrayList<Point> path(World world, EnemyUnit[] enemyUnits, Point start,
+                                  Point end) {
+        double[][] distances = new double[worldWidth][worldHeight];
+        boolean[][] visited = new boolean[worldWidth][worldHeight];
+        ArrayList<Point>[][] paths =
+                new ArrayList<Point>[worldWidth][worldHeight];
+        for (int i = 0; i < distances.length; i++) {
+            for (int j = 0; j < distances[i].length; j++) {
+                paths[i][j] = new ArrayList<>();
+                distances[i][j] = i == start.getX() && j == start.getY() ? 0 :
+                        Double.MAX_VALUE;
+                if (i == start.getX() && j == start.getY()) {
+                    paths[i][j].add(start);
+                }
+            }
+        }
+        Point current = start;
+        while (!visited[end.getX()][end.getY()]) {
+            visited[current.getX()][current.getY()] = true;
+            for (Direction direction : directions) {
+                Point considered = direction.movePoint(current);
+                if (
+                        world.isWithinBounds(considered) &&
+                        world.getTile(considered) != TileType.WALL &&
+                        !visited[considered.getX()][considered.getY()]) {
+                    double newDistance =
+                            distances[current.getX()][current.getY()] + 1;
+                    //node weight of considered goes instead of the 1 above
+                    if (distances[considered.getX()][considered.getY()] >
+                            newDistance) {
+                        distances[considered.getX()][considered.getY()] =
+                                newDistance;
+                        paths[considered.getX()][considered.getY()] =
+                                (ArrayList<Point>)
+                                        paths[current.getX()][current.getY()]
+                                                .clone();
+                        paths[considered.getX()][considered.getY()]
+                                .add(considered);
+                    }
+                }
+            }
+            double minDistance = Double.MAX_VALUE;
+            Point next = null;
+            for (int i = 0; i < distances.length; i++) {
+                for (int j = 0; j < distances[i].length; j++) {
+                    if (!visited[i][j]) {
+                        if (distances[i][j] < minDistance) {
+                            minDistance = distances[i][j];
+                            next = new Point(i, j);
+                        }
+                    }
+                }
+            }
+            current = next;
+        }
+        return paths[end.getX()][end.getY()];
     }
 
     private int totalDistance (World world, Point... ps) {
