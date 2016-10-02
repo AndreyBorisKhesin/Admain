@@ -460,6 +460,22 @@ public class PlayerAI {
                 }
             }
         }
+        // Compute the number of mainframes we control and the number of
+        // mainframes our enemies control.
+	    int ourMainframes = 0;
+	    int theirMainframes = 0;
+	    for (ControlPoint cp : world.getControlPoints()) {
+		    if (cp.isMainframe()
+				    && enemyNumber(friendlyUnits[0].getTeam(),
+				    cp.getControllingTeam()) == 1) {
+			    ourMainframes++;
+		    }
+		    if (cp.isMainframe()
+				    && enemyNumber(friendlyUnits[0].getTeam(),
+				    cp.getControllingTeam()) == -1) {
+			    theirMainframes++;
+		    }
+	    }
         // We now compute the action value of all possible moves. For each
         // friendly unit, and for each direction they might move in, we
         // compute the value of that position. This is a complicated function
@@ -583,22 +599,6 @@ public class PlayerAI {
                         if (val >= goodness[i][j]) {
                             goodness[i][j] = val;
                         }
-                    }
-                }
-                // Compute the number of mainframes we control and the number
-                // of mainframes our enemies control.
-                int ourMainframes = 0;
-                int theirMainframes = 0;
-                for (ControlPoint cp : world.getControlPoints()) {
-                    if (cp.isMainframe()
-                            && enemyNumber(friendlyUnits[i].getTeam(),
-                            cp.getControllingTeam()) == 1) {
-                        ourMainframes++;
-                    }
-                    if (cp.isMainframe()
-                            && enemyNumber(friendlyUnits[i].getTeam(),
-                            cp.getControllingTeam()) == -1) {
-                        theirMainframes++;
                     }
                 }
                 // Compute how good this location is with respect to control
@@ -726,8 +726,10 @@ public class PlayerAI {
                     }
                     boolean lastMoveFailed2 = (
                             !friendlyUnits[2].didLastActionSucceed() &&
-                            friendlyUnits[2].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY);
-                    if (this.lastMoves[2] == Direction.values()[d2] && lastMoveFailed2) {
+                            friendlyUnits[2].getLastMoveResult()
+		                            == MoveResult.BLOCKED_BY_ENEMY);
+                    if (this.lastMoves[2] == Direction.values()[d2]
+		                    && lastMoveFailed2) {
                         continue;
                     }
                     for (int d3 = 0; d3 < Direction.values().length; d3++) {
@@ -741,8 +743,10 @@ public class PlayerAI {
                         }
                         boolean lastMoveFailed3 = (
                                 !friendlyUnits[3].didLastActionSucceed() &&
-                                friendlyUnits[3].getLastMoveResult() == MoveResult.BLOCKED_BY_ENEMY);
-                        if (this.lastMoves[3] == Direction.values()[d3] && lastMoveFailed3) {
+                                friendlyUnits[3].getLastMoveResult()
+		                                == MoveResult.BLOCKED_BY_ENEMY);
+                        if (this.lastMoves[3] == Direction.values()[d3]
+		                        && lastMoveFailed3) {
                             continue;
                         }
                         // Compute the unity factor after we have moved our
@@ -754,7 +758,7 @@ public class PlayerAI {
                         directions[3] = Direction.values()[d3];
                         int resultingUnity = this.unityFactor(world,
                                 friendlyUnits, directions);
-                        //Compute the danger of moving to a given tile.
+                        // Compute the danger of moving to a given tile.
                         int[] resultingHealth = new int[4];
                         for (int i = 0; i < friendlyUnits.length; i++) {
                             if (friendlyUnits[i].getHealth() == 0) {
@@ -766,8 +770,8 @@ public class PlayerAI {
                             int friendlyNum = 0;
                             int friendlyHealth = 0;
                             int friendlyDamage = 0;
-                            //Compute the health and firepower of enemies
-                            //aiming at that tile.
+                            // Compute the health and firepower of enemies
+                            // aiming at that tile.
                             for (EnemyUnit e : enemyUnits) {
                                 if (e.getHealth() > 0
                                         && world.canShooterShootTarget(
@@ -781,8 +785,8 @@ public class PlayerAI {
                                     enemyHealth += e.getHealth();
                                 }
                             }
-                            //Compute the health and firepower of friends
-                            //in the vicinity of that tile.
+                            // Compute the health and firepower of friends
+                            // in the vicinity of that tile.
                             for (FriendlyUnit friendlyUnit : friendlyUnits) {
                                 if (friendlyUnit.getHealth() > 0
                                         && world.getPathLength(
@@ -794,10 +798,13 @@ public class PlayerAI {
                                             .getCurrentWeapon().getDamage();
                                 }
                             }
-                            //Compute the fear of a tile as 
+                            // Compute the fear of a tile as the difference
+                            // between power projected by the enemy and power
+                            // projected by our team.
                             resultingHealth[i] = Math.max(0, enemyHealth
                                     + enemyNum * enemyDamage - friendlyHealth
-                                    - friendlyNum * friendlyDamage) + 1;
+                                    - friendlyNum * friendlyDamage - 10
+		                            * ourMainframes) + 1;
                         }
                         double curGoodness = 0;
                         curGoodness += goodness[0][d0]
