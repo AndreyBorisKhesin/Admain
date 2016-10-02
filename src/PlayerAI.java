@@ -28,80 +28,7 @@ public class PlayerAI {
         statsSet = false;
     }
 
-    /*private ArrayList<Point> path(World world, EnemyUnit[] enemyUnits,
-                                  Point start, Point end,
-                                  FriendlyUnit friendlyUnit) {
-        double[][] distances = new double[worldWidth][worldHeight];
-        boolean[][] visited = new boolean[worldWidth][worldHeight];
-        List<List<List<Point>>> paths = new ArrayList<>();
-        for (int i = 0; i < distances.length; i++) {
-            paths.add(new ArrayList<>());
-            for (int j = 0; j < distances[i].length; j++) {
-                paths.get(i).add(new ArrayList<>());
-                distances[i][j] = i == start.getX() && j == start.getY() ? 0 :
-                        Double.MAX_VALUE;
-                if (i == start.getX() && j == start.getY()) {
-                    paths.get(i).get(j).add(start);
-                }
-            }
-        }
-        Point current = start;
-        while (
-                world.isWithinBounds(end) &&
-                !visited[end.getX()][end.getY()]) {
-            visited[current.getX()][current.getY()] = true;
-            for (Direction direction : directions) {
-                Point considered = direction.movePoint(current);
-                if (
-                        world.isWithinBounds(considered) &&
-                        world.getTile(considered) != TileType.WALL &&
-                        !visited[considered.getX()][considered.getY()]) {
-                    double nodeWeight = 1;
-                    for (EnemyUnit enemyUnit : enemyUnits) {
-                        nodeWeight *= (2 * enemyUnit.getHealth()
-                                / friendlyUnit.getCurrentWeapon().getRange()
-                                / friendlyUnit.getCurrentWeapon().getDamage()
-                                - friendlyUnit.getHealth()
-                                / enemyUnit.getCurrentWeapon().getRange()
-                                / enemyUnit.getCurrentWeapon().getDamage())
-                                / (world.getPathLength(considered,
-                                enemyUnit.getPosition()) + 1)
-                                / (world.getPathLength(considered,
-                                enemyUnit.getPosition()) + 1);
-                    }
-                    double newDistance =
-                            distances[current.getX()][current.getY()] +
-                                    Math.max(1, nodeWeight + 1);
-                    if (distances[considered.getX()][considered.getY()] >
-                            newDistance) {
-                        distances[considered.getX()][considered.getY()] =
-                                newDistance;
-                        paths.get(considered.getX()).set(considered.getY(),
-                                paths.get(current.getX())
-                                        .get(current.getY()));
-                        paths.get(considered.getX()).get(considered.getY())
-                                .add(considered);
-                    }
-                }
-            }
-            double minDistance = Double.MAX_VALUE;
-            Point next = null;
-            for (int i = 0; i < distances.length; i++) {
-                for (int j = 0; j < distances[i].length; j++) {
-                    if (!visited[i][j]) {
-                        if (distances[i][j] < minDistance) {
-                            minDistance = distances[i][j];
-                            next = new Point(i, j);
-                        }
-                    }
-                }
-            }
-            current = next;
-        }
-        return (ArrayList<Point>) paths.get(end.getX()).get(end.getY());
-    }*/
-
-    private int totalDistance (World world, Point... ps) {
+    private int totalDistance(World world, Point... ps) {
         int total = 0;
         for (Point p1 : ps) {
             for (Point p2 : ps) {
@@ -275,8 +202,17 @@ public class PlayerAI {
     }
 
     private int weaponCoefficient (WeaponType w) {
+	    if (w == null) {
+		    return 0;
+	    }
         return Math.min(w.getRange(), this.maximumEffectiveRange)
 		        * w.getDamage();
+    }
+
+    private int modifiedWeaponCoefficient (WeaponType w, World world,
+                                           Point point) {
+	    return Math.max(weaponCoefficient(w),
+			    weaponCoefficient(pickToGun(world.getPickupAtPosition(point))));
     }
 
     private int pickupScore (PickupType p) {
@@ -287,16 +223,16 @@ public class PlayerAI {
             return 0;
         }
         if (p == PickupType.WEAPON_LASER_RIFLE) {
-            return 8*Math.min(4, this.maximumEffectiveRange);
+            return 8 * Math.min(4, this.maximumEffectiveRange);
         }
         if (p == PickupType.WEAPON_MINI_BLASTER) {
-            return 4*Math.min(5, this.maximumEffectiveRange);
+            return 4 * Math.min(5, this.maximumEffectiveRange);
         }
         if (p == PickupType.WEAPON_SCATTER_GUN) {
-            return 25*Math.min(2, this.maximumEffectiveRange);
+            return 25 * Math.min(2, this.maximumEffectiveRange);
         }
         if (p == PickupType.WEAPON_RAIL_GUN) {
-            return 6*Math.min(10, this.maximumEffectiveRange);
+            return 6 * Math.min(10, this.maximumEffectiveRange);
         }
         return -128;
     }
@@ -510,7 +446,8 @@ public class PlayerAI {
                         double val =
                             this.fudgeFactor * this.weaponCoefficient(
                             		friendlyUnits[i].getCurrentWeapon()) -
-                            this.weaponCoefficient(e.getCurrentWeapon());
+                            this.modifiedWeaponCoefficient(e.getCurrentWeapon(),
+		                            world, e.getPosition());
                         int len = world.getPathLength(newStart,
                                 e.getPosition());
                         val /= len + 1;
