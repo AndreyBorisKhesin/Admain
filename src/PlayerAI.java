@@ -27,7 +27,7 @@ public class PlayerAI {
         statsSet = false;
     }
 
-    private ArrayList<Point> path(World world, EnemyUnit[] enemyUnits,
+    /*private ArrayList<Point> path(World world, EnemyUnit[] enemyUnits,
                                   Point start, Point end,
                                   FriendlyUnit friendlyUnit) {
         double[][] distances = new double[worldWidth][worldHeight];
@@ -98,7 +98,7 @@ public class PlayerAI {
             current = next;
         }
         return (ArrayList<Point>) paths.get(end.getX()).get(end.getY());
-    }
+    }*/
 
     private int totalDistance (World world, Point... ps) {
         int total = 0;
@@ -386,11 +386,12 @@ public class PlayerAI {
                 new double[friendlyUnits.length][Direction.values().length];
             for (int i = 0; i < friendlyUnits.length; i++) {
                 for (int j = 0; j < Direction.values().length; j++) {
+                    Point target = null;
                     goodness[i][j] = Double.MIN_VALUE;
                     for (Pickup p: world.getPickups()) {
                         double val = 1.0;
-                        switch(p) {
-                            case PickupType.SHIELD:
+                        switch(p.getPickupType()) {
+                            case SHIELD:
                                 val *= 3;
                                 int playnum = 0;
                                 for (FriendlyUnit fu : friendlyUnits) {
@@ -401,14 +402,14 @@ public class PlayerAI {
                                 if (playnum != 0) {
                                     val /= playnum;
                                 }
-                            case PickupType.REPAIR_KIT:
+                            case REPAIR_KIT:
                                 val *= 500.0 / friendlyUnits[i].getHealth();
                                 break;
-                            case PickupType.WEAPON_LASER_RIFLE:
-                            case PickupType.WEAPON_MINI_BLASTER:
-                            case PickupType.WEAPON_SCATTER_GUN:
-                            case PickupType.WEAPON_RAIL_GUN:
-                                WeaponType otherGun = this.pickToGun(p.getPickupType());
+                            case WEAPON_LASER_RIFLE:
+                            case WEAPON_MINI_BLASTER:
+                            case WEAPON_SCATTER_GUN:
+                            case WEAPON_RAIL_GUN:
+                                WeaponType otherGun = this.pickToGun(p);
                                 WeaponType myGun = friendlyUnits[i].getCurrentWeapon();
                                 val *= (
                                     Math.min(
@@ -418,18 +419,16 @@ public class PlayerAI {
                                     Math.min(
                                         myGun.getRange(),
                                         this.maximumEffectiveRange) *
-                                    myGun.getDamage() -
+                                    myGun.getDamage()
                                     );
                                 break;
                         }
-                        ArrayList<Point> path = path(world, enemyUnits,
-                                friendlyUnits[i].getPosition(), p.getPosition(), friendlyUnits[i]);
-//                          int len = world.getPathLength(f.getPosition(),
-//                                  p.getPosition());
-                        if (path.size() != 1) {
-                            val /= path.size();
-                            if (val > max) {
-                                max = val;
+                        int len = world.getPathLength(friendlyUnits[i].getPosition(),
+                                p.getPosition());
+                        if (len != 0) {
+                            val /= len + 1;
+                            if (val > goodness[i][j]) {
+                                goodness[i][j] = val;
                                 target = p.getPosition();
                             }
                         }
@@ -442,14 +441,12 @@ public class PlayerAI {
                             this.fudgeFactor*this.pickupScore(this.gunToPick(
                                     friendlyUnits[i].getCurrentWeapon())) -
                             this.pickupScore(this.gunToPick(e.getCurrentWeapon()));
-                        ArrayList<Point> path = path(world, enemyUnits,
-                                friendlyUnits[i].getPosition(), e.getPosition(), friendlyUnits[i]);
-    //                        int len = world.getPathLength(f.getPosition(),
-    //                                p.getPosition());
-                        val /= path.size();
+                        int len = world.getPathLength(friendlyUnits[i].getPosition(),
+                                e.getPosition());
+                        val /= len+1;
                         val *= 5;
-                        if (val > max) {
-                            max = val;
+                        if (val > goodness[i][j]) {
+                            goodness[i][j] = val;
                             target = e.getPosition();
                         }
                     }
@@ -507,12 +504,10 @@ public class PlayerAI {
                             }
                             val /= playnum;
                         }
-                        ArrayList<Point> path = path(world, enemyUnits,
-                                friendlyUnits[i].getPosition(), p.getPosition(), friendlyUnits[i]);
-//                        int len = world.getPathLength(f.getPosition(),
-//                                p.getPosition());
-                        if (path.size() != 1) {
-                            val /= path.size();
+                        int len = world.getPathLength(friendlyUnits[i].getPosition(),
+                                p.getPosition());
+                        if (len != 0) {
+                            val /= len + 1;
                             if (val > max) {
                                 max = val;
                                 target = p.getPosition();
@@ -522,12 +517,10 @@ public class PlayerAI {
                         double val = this.pickupScore(p.getPickupType()) -
                             this.pickupScore(this.gunToPick(
                                     friendlyUnits[i].getCurrentWeapon()));
-                        ArrayList<Point> path = path(world, enemyUnits,
-                                friendlyUnits[i].getPosition(), p.getPosition(), friendlyUnits[i]);
-//                        int len = world.getPathLength(f.getPosition(),
-//                                p.getPosition());
-                        if (path.size() != 1) {
-                            val /= path.size();
+                        int len = world.getPathLength(friendlyUnits[i].getPosition(),
+                                p.getPosition());
+                        if (len != 0) {
+                            val /= len + 1;
                             if (val > max) {
                                 max = val;
                                 target = p.getPosition();
@@ -543,11 +536,9 @@ public class PlayerAI {
                         this.fudgeFactor*this.pickupScore(this.gunToPick(
                                 friendlyUnits[i].getCurrentWeapon())) -
                         this.pickupScore(this.gunToPick(e.getCurrentWeapon()));
-                    ArrayList<Point> path = path(world, enemyUnits,
-                            friendlyUnits[i].getPosition(), e.getPosition(), friendlyUnits[i]);
-//                        int len = world.getPathLength(f.getPosition(),
-//                                p.getPosition());
-                    val /= path.size();
+                    int len = world.getPathLength(friendlyUnits[i].getPosition(),
+                            e.getPosition());
+                    val /= len + 1;
                     val *= 5;
                     if (val > max) {
                         max = val;
